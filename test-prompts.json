@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "Review this Nushell snippet and fix the string quoting/interpolation mistakes: let msg = $\"hello\"; print \"User: ($name)\"; print $'\\nDone'; let pattern = \"(?:src|lib)/.*\\.nu\"",
+    "expected": "Detect incorrect double quotes, missing interpolation prefix, invalid single-quote escaping, and regex quoting; return corrected Nushell with explanations."
+  },
+  {
+    "id": 2,
+    "prompt": "Convert a Bash script that builds command strings, writes files with >, and uses grep into idiomatic Nushell, preserving security and string escaping behavior.",
+    "expected": "Use argument separation, save/save --append, structured Nushell commands where possible, and correct string forms for literals, interpolation, escapes, and regex."
+  },
+  {
+    "id": 3,
+    "prompt": "Write a Nushell function that formats a colored status line containing a package name/version, a literal newline, and a regex filter supplied as configuration.",
+    "expected": "Choose $'...' for ansi/char interpolation without escapes, $\"...\\n\" only when escape sequences are required, and raw strings for regex examples."
+  }
+]

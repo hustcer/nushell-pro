@@ -8,6 +8,31 @@ description: |
 
 Write idiomatic, performant, secure, and maintainable Nushell scripts. This skill enforces Nushell conventions, catches security issues, and helps avoid common pitfalls.
 
+## Operating Workflow
+
+Use this sequence whenever writing, reviewing, refactoring, or converting Nushell code:
+
+1. Identify the task type: new script, code review, refactor, Bash conversion, module design, security audit, or debugging.
+2. Read the existing `.nu` files and nearby project conventions before changing code.
+3. Load only the reference files needed for the task:
+   - String quoting, interpolation, escaping, regex, or globs -> [String Formats](references/string-formats.md)
+   - Security, untrusted input, external commands, paths, credentials, or destructive operations -> [Security](references/security.md)
+   - Review-only requests -> [Script Review](references/script-review.md)
+   - Bash/POSIX conversion -> [Bash to Nushell](references/bash-to-nushell.md)
+   - Modules, exports, scripts, or tests -> [Modules & Scripts](references/modules-and-scripts.md)
+   - Types, records, tables, lists, or conversions -> [Data & Type System](references/data-and-types.md)
+   - Streaming, `par-each`, performance, closures, or memory behavior -> [Advanced Patterns](references/advanced-patterns.md)
+   - Common mistakes and fixes -> [Anti-Patterns](references/anti-patterns.md)
+4. Apply the critical checks in this file first, then use references for details.
+5. Validate parseability with `nu -c 'source path/to/file.nu'` for modules or `nu path/to/script.nu` for scripts when the command is safe to run.
+6. Summarize security findings first, then correctness/style/performance changes.
+
+If validation fails -> read the Nushell diagnostic, fix the syntax or type signature, and rerun the smallest safe validation command.
+If a command has side effects -> validate only parseability or use a fixture/temp directory.
+If a reference conflicts with local project style -> keep project style unless it violates safety, parseability, or Nushell semantics.
+
+STOP CHECKPOINT: Before approving code that runs external commands, deletes files, reads credentials, mutates `$env`, or executes user-provided paths/patterns, explicitly confirm the safe argument boundaries and failure behavior.
+
 ## Core Principles
 
 1. **Think in pipelines** — Data flows through pipelines; prefer functional transformations over imperative loops
@@ -317,14 +342,62 @@ for f in (ls) { $count += 1 }    # Use a loop if mutation truly needed
 
 Refer to [String Formats Reference](references/string-formats.md) for the full priority and rules.
 
-**Quick summary (high to low priority):**
+String form mistakes are common and high impact. Decide with this table before writing or reviewing any string:
+
+| Need | Use | Do not use |
+| --- | --- | --- |
+| Simple literal text | `'hello world'` | `"hello world"` or `$"hello world"` |
+| Simple values inside arrays or match arms | `[foo bar baz]`, `match $x { ok => ... }` | `["foo" "bar" "baz"]` when quotes add no meaning |
+| Interpolation without escape sequences | `$'User: ($name)'` | `$"User: ($name)"` |
+| Literal escape sequence such as newline or tab | `"line1\nline2"` | `'line1\nline2'` |
+| Interpolation plus real escape sequences | `$"($name)\n"` | `$'($name)\n'` |
+| Regex pattern or text with many quotes/backslashes | `r#'(?:src|lib)/.*\.nu'#` | `"(?:src|lib)/.*\\.nu"` |
+| Path or glob argument with spaces | `` `./My Dir/*.nu` `` | Escaped Bash-style strings |
+
+**Decision order:**
 
 1. Bare words in arrays: `[foo bar baz]`
 2. Raw strings for regex: `r#'(?:pattern)'#`
 3. Single quotes: `'simple string'`
 4. Single-quoted interpolation: `$'Hello, ($name)!'`
-5. Double quotes only for escapes: `"line1\nline2"`
-6. Double-quoted interpolation: `$"tab:\t($value)\n"` (only with escapes)
+5. Backticks for path/glob arguments containing spaces: `` `./My Dir/*.nu` ``
+6. Double quotes only for real escapes: `"line1\nline2"`
+7. Double-quoted interpolation only when both interpolation and escapes are required: `$"tab:\t($value)\n"`
+
+**Non-negotiable string rules:**
+
+- `$'...'` and `'...'` do not process escapes. `\n`, `\t`, and `\'` remain literal characters.
+- A string containing `(...)` only evaluates it when prefixed with `$`: `$'(ansi g)OK(ansi rst)'`, not `'(ansi g)OK(ansi rst)'`.
+- Use `char nl` inside `$'...'` when interpolation is needed but the only escape-like value is a newline: `$'(char nl)Done'`.
+- Use `$"..."` only when the final string truly needs escape processing and interpolation in the same literal.
+- Do not build shell command strings for execution. Pass arguments separately: `^git commit -m $msg`, not `^sh -c $'git commit -m "($msg)"'`.
+- For regex literals, prefer raw strings and add `#` delimiters when the pattern contains quotes: `r#'name="[^"]+"'#`.
+
+**Common corrections:**
+
+```nu
+# Wrong: interpolation is missing because there is no $ prefix
+print 'User: ($name)'
+# Right
+print $'User: ($name)'
+
+# Wrong: $'...' does not turn \n into a newline
+print $'Done\n'
+# Right: command interpolation, no escape processing needed
+print $'Done(char nl)'
+# Right: escape processing is required
+print $"Done\n"
+
+# Wrong: double-quoted interpolation without escapes
+let label = $"($pkg.name)@($pkg.version)"
+# Right
+let label = $'($pkg.name)@($pkg.version)'
+
+# Wrong: regex backslashes are hard to audit
+let pattern = "(?:src|lib)/.*\\.nu"
+# Right
+let pattern = r#'(?:src|lib)/.*\.nu'#
+```
 
 ## Modules & Scripts
 
@@ -579,7 +652,9 @@ When reviewing a Nushell script, check these categories in order:
 ### 3. Style review
 
 - [ ] Naming: kebab-case commands, snake_case variables
-- [ ] String format priority followed
+- [ ] String format priority followed: simple literal -> `'...'`; interpolation without escapes -> `$'...'`; escapes -> `"..."`; interpolation plus escapes -> `$"..."`; regex -> `r#'...'#`
+- [ ] Strings containing `(...)` that should run Nushell expressions have `$` prefix
+- [ ] `$'...'` is not used for `\n`, `\t`, `\'`, or other escape processing
 - [ ] Formatting: spacing, line length, multi-line rules
 - [ ] Documentation comments on exported commands
 - [ ] `^` prefix on external commands
@@ -600,6 +675,9 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | ------------------------------------- | ------------------------------------------------ |
 | `echo $value`                         | Just `$value` (implicit return)                  |
 | `$"simple text"`                      | `'simple text'` (no interpolation needed)        |
+| `'User: ($name)'`                     | `$'User: ($name)'`                               |
+| `$'line\n'`                           | `$"line\n"` or `$'line(char nl)'`                |
+| `"[a-z]+\\.nu"`                      | `r#'[a-z]+\.nu'#`                               |
 | `for` as final expression             | Use `each` (for doesn't return a value)          |
 | `mut` for accumulation                | Use `reduce` or `math sum`                       |
 | `let path = ...; source $path`        | `const path = ...; source $path`                 |
@@ -624,6 +702,16 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 8. **Use modules** — Organize related functions
 9. **Prefix external commands with `^`** — `^grep` not `grep`; Nushell builtins take precedence (e.g., `find` is Nushell's, not Unix `find`)
 10. **Use external tools when faster** — `^rg` for large file search, `^jq` for giant JSON
+
+## Do Not Do These Things
+
+- Do not replace every quoted value with double quotes. Double quotes are for escape processing.
+- Do not use `$"..."` just because a string contains interpolation; use `$'...'` unless escapes are required.
+- Do not assume `\'`, `\n`, or `\t` work inside single-quoted or single-interpolated strings.
+- Do not remove `$` from strings containing command interpolation such as `(ansi g)`, `(char nl)`, or `($value)`.
+- Do not convert user input into `nu -c`, `source`, `^sh -c`, `^bash -c`, or `^cmd.exe /C` strings.
+- Do not parse structured Nushell output as plain strings when a record/table/list operation exists.
+- Do not run destructive examples during validation; parse-check them or use a temp fixture.
 
 ## Workflow
 

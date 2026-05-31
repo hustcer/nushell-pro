@@ -1,0 +1,3 @@
+timestamp	commit	skill	old_score	new_score	status	dimension	note	eval_mode
+2026-06-01T06:46	baseline	nushell-pro	-	65.1	baseline	-	runtime_warn=1; strong content, weak explicit workflow/fallback/checkpoint; string rules too compact for frequent agent mistakes	dry_run
+2026-06-01T06:49	staged	nushell-pro	65.1	84.1	keep	string-conventions	added executable string decision table, interpolation/escape failure rules, checkpoint, blacklist, runtime-neutral README	dry_run

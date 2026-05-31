@@ -23,10 +23,10 @@ npx skills add hustcer/nushell-pro
 claude skill add --name nushell-pro hustcer/nushell-pro
 ```
 
-Or clone manually into your skills directory:
+Or clone manually into a skills-compatible runtime directory:
 
 ```bash
-git clone https://github.com/hustcer/nushell-pro.git ~/.claude/skills/nushell-pro
+git clone https://github.com/hustcer/nushell-pro.git /path/to/skills/nushell-pro
 ```
 
 ## Structure
