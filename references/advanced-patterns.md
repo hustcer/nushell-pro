@@ -18,6 +18,11 @@ $data | length
 **Use lazy when:** Large files/streams, single-pass operations, memory constrained
 **Use eager when:** Small datasets (<10k rows), multiple operations on same data, random access needed
 
+> The lazy/eager split above is about **native** row-oriented streaming. For
+> **columnar** large-data work (heavy group-by/join/aggregation over big
+> CSV/Parquet), use the Polars plugin's lazy dataframes instead — see
+> [Dataframes](dataframes.md).
+
 ### Avoid repeated computation
 
 ```nu

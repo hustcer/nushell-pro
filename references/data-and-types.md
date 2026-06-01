@@ -309,3 +309,16 @@ match $result.type {
     'error' => { print -e $result.message; null }
 }
 ```
+
+## Dataframes (Polars)
+
+Everything above describes Nushell's **native**, row-oriented `record` / `table` /
+`list`. For large datasets and heavy columnar analytics (multi-million row
+group-by, joins, aggregations, big CSV/Parquet), Nushell also offers **Polars
+dataframes** through the `polars` plugin — a separate, column-oriented data
+structure (`polars_dataframe` / `polars_lazyframe`), not a native `table`.
+
+Rule of thumb: native `table` for small/interactive data and tight integration
+with the Nushell command set; Polars dataframes for large-scale or columnar work.
+Convert with `polars into-df` / `polars into-lazy` (in) and `polars into-nu`
+(back out). See [Dataframes](dataframes.md) for the full guide.

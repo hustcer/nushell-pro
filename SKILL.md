@@ -22,6 +22,7 @@ Use this sequence whenever writing, reviewing, refactoring, or converting Nushel
    - Modules, exports, scripts, or tests -> [Modules & Scripts](references/modules-and-scripts.md)
    - Types, records, tables, lists, or conversions -> [Data & Type System](references/data-and-types.md)
    - Streaming, `par-each`, performance, closures, or memory behavior -> [Advanced Patterns](references/advanced-patterns.md)
+   - Large datasets, Polars dataframes, columnar analytics, heavy group-by/join -> [Dataframes](references/dataframes.md)
    - Common mistakes and fixes -> [Anti-Patterns](references/anti-patterns.md)
 4. Apply the critical checks in this file first, then use references for details.
 5. Validate parseability with `nu -c 'source path/to/file.nu'` for modules or `nu path/to/script.nu` for scripts when the command is safe to run.
@@ -224,6 +225,25 @@ $record.field? | default 'N/A'   # Provide fallback
 if ($record.field? != null) { }   # Check existence
 $list | default -e $fallback      # Default for empty collections
 ```
+
+### Large data: Polars dataframes
+
+Native `list`/`table` ops are row-oriented — ideal for small, interactive data.
+For **large datasets** and **heavy analytics** (multi-million row group-by,
+joins, aggregations, big CSV/Parquet), push the work into the `polars` plugin's
+columnar dataframes instead of `each`/`reduce`. They are lazy by default.
+
+```nu
+# For large data, let Polars plan and execute the whole pipeline:
+polars open big.csv                       # lazy by default (a plan, not yet run)
+| polars group-by category
+| polars agg (polars col amount | polars sum | polars as total)
+| polars sort-by total
+| polars collect                          # execute the optimized plan once
+```
+
+Choose native vs Polars (and eager vs lazy), and see the full command set, in
+[Dataframes](references/dataframes.md).
 
 ## Pipeline & Functional Patterns
 
@@ -666,6 +686,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] `each --flatten` for streaming when appropriate
 - [ ] Expensive computations cached in `let` bindings
 - [ ] Large files streamed (lazy), not loaded entirely
+- [ ] Large/columnar datasets and heavy group-by/join use Polars dataframes (lazy), not native loops
 
 ## Common Pitfalls
 
@@ -689,6 +710,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | `$record.missing` (error)             | `$record.missing?` (returns null)                |
 | `each` on single record               | Use `items` or `transpose` instead               |
 | External cmd without `^`              | Use `^grep` to be explicit about externals       |
+| Native loop/`group-by` on huge data   | Use `polars` dataframes (lazy `open` + `group-by` + `collect`) |
 
 ## Best Practices Summary
 
@@ -736,6 +758,7 @@ When writing or reviewing Nushell code:
 - [String Formats](references/string-formats.md) — String type priority and conversion rules
 - [Anti-Patterns](references/anti-patterns.md) — Common mistakes with detailed fixes
 - [Data & Type System](references/data-and-types.md) — Type hierarchy, collections, conversions, type guards
+- [Dataframes](references/dataframes.md) — Polars dataframes: lazy/eager, group-by, joins, expressions, large-data processing
 - [Advanced Patterns](references/advanced-patterns.md) — Performance, streaming, closures, memory efficiency
 - [Modules & Scripts](references/modules-and-scripts.md) — Module system, testing, attributes
 - [Bash to Nushell](references/bash-to-nushell.md) — Conversion guide from Bash/POSIX

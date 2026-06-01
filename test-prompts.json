@@ -13,5 +13,10 @@
     "id": 3,
     "prompt": "Write a Nushell function that formats a colored status line containing a package name/version, a literal newline, and a regex filter supplied as configuration.",
     "expected": "Choose $'...' for ansi/char interpolation without escapes, $\"...\\n\" only when escape sequences are required, and raw strings for regex examples."
+  },
+  {
+    "id": 4,
+    "prompt": "I have a 5-million-row sales.csv. Group by category, sum the amount, and return the top categories. Write idiomatic Nushell.",
+    "expected": "Use the Polars plugin instead of native loops for data this large: polars open (lazy by default), polars group-by + agg (polars col amount | polars sum | polars as total), sort-by, then collect once."
   }
 ]

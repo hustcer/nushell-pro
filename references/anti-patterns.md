@@ -331,3 +331,25 @@ if ($list | length) == 0 { ... }
 if ($list | is-empty) { ... }
 if ($list | is-not-empty) { ... }
 ```
+
+## 24. Native Loops or `group-by` on Huge Datasets
+
+Native `each`/`reduce`/`group-by` process data row by row. For very large
+datasets this is slow and memory-hungry. Push the work into the `polars`
+plugin's columnar dataframes instead.
+
+```nu
+# Bad — native group-by + manual aggregation over millions of rows
+open huge.csv
+| group-by category --to-table
+| update items {|g| $g.items.amount | math sum }
+
+# Good — Polars: lazy by default, optimized columnar aggregation
+polars open huge.csv
+| polars group-by category
+| polars agg (polars col amount | polars sum | polars as total)
+| polars collect
+```
+
+Also remember to **`collect`** a lazy frame — without it you hold a plan, not
+results. See [Dataframes](dataframes.md).
