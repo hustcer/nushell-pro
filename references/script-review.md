@@ -78,6 +78,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `for` not used as final expression (returns null, use `each`)
 - [ ] `mut` variables not captured in closures (will error)
 - [ ] `source`/`use` paths are `const`, not `let`
+- [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
 - [ ] `each` not used on single records (use `items` or `transpose`)
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
@@ -116,6 +117,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `ls | where size > 1mb` instead of manual filtering
 - [ ] `enumerate` instead of manual index counters
 - [ ] `reduce` instead of `mut` accumulator + `for`
+- [ ] `match` preferred for multi-branch dispatch on a single value
 
 ### Formatting
 

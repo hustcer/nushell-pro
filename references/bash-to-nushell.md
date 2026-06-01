@@ -42,6 +42,10 @@ Quick reference for converting common Bash patterns to idiomatic Nushell.
 
 ## Conditionals
 
+Use `if` for single boolean predicates and short threshold checks. When several
+branches dispatch on the same value, prefer `match` over an `if`/`else if`
+chain.
+
 ```bash
 # Bash
 if [ "$x" -gt 10 ]; then
@@ -61,6 +65,26 @@ if $x > 10 {
     'medium'
 } else {
     'small'
+}
+```
+
+```bash
+# Bash case dispatch
+case "$status" in
+    ok) handle_ok ;;
+    error) handle_error ;;
+    pending) handle_pending ;;
+    *) handle_unknown ;;
+esac
+```
+
+```nu
+# Nushell — prefer match for enum-like or multi-branch dispatch
+match $status {
+    ok => { handle-ok }
+    error => { handle-error }
+    pending => { handle-pending }
+    _ => { handle-unknown }
 }
 ```
 

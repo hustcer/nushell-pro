@@ -60,7 +60,8 @@ nushell-pro/
 5. Implicit return — last expression is the return value
 6. Scoped environment — `def --env` when caller-side changes are needed
 7. Type safety — annotate parameters and I/O signatures
-8. Parallel ready — immutable code enables easy `par-each`
+8. Prefer `match` for branching — avoid long `if`/`else if` chains when dispatching on one value
+9. Parallel ready — immutable code enables easy `par-each`
 
 ### Security Model
 

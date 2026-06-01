@@ -43,7 +43,8 @@ STOP CHECKPOINT: Before approving code that runs external commands, deletes file
 5. **Implicit return** — The last expression's value is the return value; no need for `echo` or `return`
 6. **Scoped environment** — Environment changes are local to their block; use `def --env` when caller-side changes are needed
 7. **Type safety** — Annotate parameter types and input/output signatures for better error detection and documentation
-8. **Parallel ready** — Immutable code enables easy `par-each` parallelization
+8. **Prefer `match` for branching** — Use `match` instead of long `if`/`else if` chains when dispatching on one value or handling many branches
+9. **Parallel ready** — Immutable code enables easy `par-each` parallelization
 
 ## Critical: Pipeline Input vs Parameters
 
@@ -302,6 +303,35 @@ $list | where {$in > 10}             # Use $in or parameter
 ```
 
 **Use row conditions** for simple field comparisons; **use closures** for complex logic or reusable conditions.
+
+### Branching with `match`
+
+Nushell's `match` is a parser keyword: `match <value> <match_block>`.
+Prefer it over `if`/`else if` chains when multiple branches depend on the same
+value, such as status dispatch, command routing, type guards, or enum-like
+options. Use `if` for a single boolean condition or when each branch has a
+different predicate.
+
+```nu
+# Less clear — repeated checks against the same value
+if $status == 'ok' {
+    handle-ok
+} else if $status == 'error' {
+    handle-error
+} else if $status == 'pending' {
+    handle-pending
+} else {
+    handle-unknown
+}
+
+# Preferred — one dispatch expression with an explicit fallback
+match $status {
+    ok => { handle-ok }
+    error => { handle-error }
+    pending => { handle-pending }
+    _ => { handle-unknown }
+}
+```
 
 ### Pipeline input with $in
 
@@ -667,6 +697,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] External commands checked with `complete` when error handling matters
 - [ ] Optional fields accessed with `?` operator
 - [ ] No `for` as final expression (use `each` instead)
+- [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
 - [ ] `mut` not captured in closures
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 
@@ -703,6 +734,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | `"[a-z]+\\.nu"`                      | `r#'[a-z]+\.nu'#`                               |
 | `for` as final expression             | Use `each` (for doesn't return a value)          |
 | `mut` for accumulation                | Use `reduce` or `math sum`                       |
+| Long `if`/`else if` chains on one value | Prefer `match` with `_` fallback              |
 | `let path = ...; source $path`        | `const path = ...; source $path`                 |
 | `"hello" > file.txt`                  | `'hello' \| save file.txt`                       |
 | `grep pattern`                        | `where $it =~ pattern` or built-in `find`        |
@@ -747,12 +779,13 @@ When writing or reviewing Nushell code:
 3. **Check naming** — kebab-case commands, snake_case variables
 4. **Check types** — Add/verify type annotations and I/O signatures
 5. **Check strings** — Follow the string format priority
-6. **Check patterns** — Prefer functional pipelines over imperative loops
-7. **Check formatting** — Spacing, line length, multi-line rules
-8. **Check documentation** — Comments for exported commands, parameter descriptions
-9. **Check error handling** — try/catch, complete for externals, validate inputs
-10. **Run validation** if possible — `nu -c 'source file.nu'` or `nu file.nu`
-11. **Summarize changes** made with security findings highlighted
+6. **Check branching** — Prefer `match` over long `if`/`else if` chains on one value
+7. **Check patterns** — Prefer functional pipelines over imperative loops
+8. **Check formatting** — Spacing, line length, multi-line rules
+9. **Check documentation** — Comments for exported commands, parameter descriptions
+10. **Check error handling** — try/catch, complete for externals, validate inputs
+11. **Run validation** if possible — `nu -c 'source file.nu'` or `nu file.nu`
+12. **Summarize changes** made with security findings highlighted
 
 ## References
 

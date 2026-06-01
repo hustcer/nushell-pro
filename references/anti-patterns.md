@@ -210,14 +210,19 @@ let version = (open Cargo.toml | get package.version)
 
 ## 15. Not Using `match` for Multi-Branch Logic
 
+Prefer `match` whenever several branches dispatch on the same value. It keeps
+the compared value in one place, makes the fallback explicit with `_`, and
+avoids drifting conditions in long `if`/`else if` ladders. Keep `if` for one-off
+boolean predicates or branches that genuinely compare different expressions.
+
 ```nu
-# Bad — chain of if/else
+# Less clear — chain of if/else
 if $status == 'ok' { handle-ok }
 else if $status == 'error' { handle-error }
 else if $status == 'pending' { handle-pending }
 else { handle-unknown }
 
-# Good — pattern matching
+# Preferred — pattern matching
 match $status {
     ok => { handle-ok }
     error => { handle-error }
