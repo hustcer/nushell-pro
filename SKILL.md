@@ -238,7 +238,7 @@ columnar dataframes instead of `each`/`reduce`. They are lazy by default.
 polars open big.csv                       # lazy by default (a plan, not yet run)
 | polars group-by category
 | polars agg (polars col amount | polars sum | polars as total)
-| polars sort-by total
+| polars sort-by total -r [true]
 | polars collect                          # execute the optimized plan once
 ```
 

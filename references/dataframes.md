@@ -72,7 +72,7 @@ the plugin's lifetime.
 
 ```nu
 polars store-ls | select key type columns rows estimated_size  # List stored objects
-polars store-rm $df                                            # Drop one object
+polars store-ls | get key | first | polars store-rm $in        # Drop one object by key
 plugin stop polars                                             # Drop everything (full reset)
 ```
 
@@ -87,7 +87,7 @@ plugin stop polars                                             # Drop everything
 ```nu
 # Create from native Nushell data
 [[a b]; [1 2] [3 4] [5 6]] | polars into-df       # table  -> eager dataframe
-[1 2 3 4] | polars into-df                         # list   -> single-column df (a Series)
+[1 2 3 4] | polars into-df                         # list   -> single-column dataframe
 [[a b]; [1 a] [2 b]] | polars into-lazy            # table  -> lazy frame
 
 # Open files: csv, tsv, parquet, json, jsonl/ndjson, arrow, avro
@@ -242,8 +242,9 @@ last or a custom expression) when multiple rows collapse into one cell.
 
 ## String and Date Columns
 
-String ops live under `polars str-*` (regrouped since older versions; the old
-`replace`/`concatenate` names are gone):
+String ops live under `polars str-*` (regrouped since older versions; old
+substring replacement examples that used generic names should now use the
+string-specific commands):
 
 ```nu
 $df | polars select (polars col w | polars str-replace-all -p '[0-9]+' -r 'N')  # regex replace
@@ -309,7 +310,7 @@ polars open big.csv | polars filter ((polars col ok) == true) | polars save filt
 | --- | --- |
 | `polars melt` | `polars unpivot` (and new `polars pivot` for the reverse) |
 | `polars join --outer` | `polars join --full` |
-| `polars replace` / `replace-all` (string) | `polars str-replace` / `polars str-replace-all` |
+| old substring replacement examples using `replace` / `replace-all` | `polars str-replace` / `polars str-replace-all` (`polars replace` still exists for value mapping) |
 | `polars concatenate` | `polars str-join` / `polars concat-str` |
 | `polars fetch` | removed (use `polars collect` / `polars first`) |
 | `describe` → `DataFrame` | `describe` → `polars_dataframe` / `polars_lazyframe` |
@@ -323,9 +324,9 @@ DSL), `polars when`/`otherwise`, `polars join-where`, `polars profile`,
 ## Performance Notes
 
 - Polars uses a **columnar layout (Apache Arrow)** plus a **query optimizer**, so
-  heavy `group-by`/`join`/aggregation on large data runs roughly an order of
-  magnitude faster than native Nushell pipelines, and typically faster than
-  pandas as well. (See the official
+  heavy `group-by`/`join`/aggregation on large data can run substantially
+  faster than native Nushell pipelines, and often faster than pandas as well.
+  (See the official
   [Dataframes chapter](https://www.nushell.sh/book/dataframes.html) for
   benchmarks.)
 - Stay **lazy** end-to-end and `collect` once at the end — that lets the

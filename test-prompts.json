@@ -17,6 +17,6 @@
   {
     "id": 4,
     "prompt": "I have a 5-million-row sales.csv. Group by category, sum the amount, and return the top categories. Write idiomatic Nushell.",
-    "expected": "Use the Polars plugin instead of native loops for data this large: polars open (lazy by default), polars group-by + agg (polars col amount | polars sum | polars as total), sort-by, then collect once."
+    "expected": "Use the Polars plugin instead of native loops for data this large: polars open (lazy by default), polars group-by + agg (polars col amount | polars sum | polars as total), sort-by total -r [true] for top categories, then collect once."
   }
 ]
