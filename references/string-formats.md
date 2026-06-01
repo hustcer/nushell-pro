@@ -40,6 +40,22 @@
 - Escape sequences present: `"\n"`, `"\t"`, `"\r"`, `"\""`
 - Need both interpolation and escapes: `$"Line: ($n)\n"`
 
+### YAML output in 0.113.1+
+
+`to yaml` no longer quotes every string. It emits plain scalars when they are
+safe to round-trip as strings, keeps quotes for values that YAML could
+reinterpret (for example `'off'`), and emits multiline strings as block scalars.
+
+```nu
+{value: 'off', path: '/dev/stdout', name: 'kong'} | to yaml
+# value: 'off'
+# path: /dev/stdout
+# name: kong
+```
+
+When testing YAML output, assert parsed structure where possible instead of exact
+quote style.
+
 ### Important: Single quotes don't escape
 
 In Nushell, `\'` inside `$'...'` is NOT an escape — it's a literal backslash + quote.

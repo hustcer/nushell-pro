@@ -62,6 +62,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] Fallible operations wrapped in `try/catch`
 - [ ] External commands checked with `complete` when exit code matters
 - [ ] `catch` blocks include meaningful error context (not empty)
+- [ ] `finally` used for cleanup side effects, not as the returned value
 - [ ] Custom errors include `label` with `span` for good error messages
 - [ ] No bare `error make {msg: '...'}` without span when metadata is available
 
@@ -78,6 +79,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `mut` variables not captured in closures (will error)
 - [ ] `source`/`use` paths are `const`, not `let`
 - [ ] `each` not used on single records (use `items` or `transpose`)
+- [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
 
 ### External commands
@@ -153,6 +155,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `each --flatten` for streaming nested results
 - [ ] Large files not loaded entirely when streaming suffices
 - [ ] `lines` + pipeline for line-by-line processing of large files
+- [ ] `peek` used for stream metadata/sample inspection instead of collecting
 - [ ] `first N` / `take while` to limit processing early
 
 ### Caching & computation
@@ -178,6 +181,8 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `path exists` checked before `open` when file may not exist
 - [ ] `save --force` used intentionally (overwrites without warning)
 - [ ] File encoding handled appropriately (`open --raw` for binary)
+- [ ] `mkdir -v` / `mv -v` / `rm -v` outputs treated as tables, not parsed text
+- [ ] `rm` / `mkdir` partial-success behavior considered when multiple paths are passed
 
 ### Process management
 

@@ -353,3 +353,20 @@ polars open huge.csv
 
 Also remember to **`collect`** a lazy frame — without it you hold a plan, not
 results. See [Dataframes](dataframes.md).
+
+## 25. Assuming `parse` Splits Streams into Lines
+
+Since Nushell 0.113, `parse` no longer implicitly splits byte/string streams
+from files or external commands into lines. It collects the stream and parses it
+as one input value. Add `lines` when you want the old line-by-line behavior.
+
+```nu
+# Bad — expects one match per line, but parses the stream as one input value
+open app.log | parse -r '^(?<level>\w+) (?<message>.*)$'
+
+# Good — explicit line-by-line parsing
+open app.log | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
+
+# Also good — intentionally parse the whole file with a multiline regex
+open changelog.txt | parse -r r#'(?ms)^## (?<version>.*?)\n(?<body>.*)'#
+```

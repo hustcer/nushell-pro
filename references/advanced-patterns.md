@@ -23,6 +23,26 @@ $data | length
 > CSV/Parquet), use the Polars plugin's lazy dataframes instead — see
 > [Dataframes](dataframes.md).
 
+### Inspect streams without collecting: `peek`
+
+Use `peek` when a command needs to inspect whether input is a stream, or sample
+the first few values, without forcing the whole stream into memory. It exposes
+the information through pipeline metadata, which you read with `metadata access`.
+
+```nu
+.. | peek 1 | metadata access {|md|
+    if $md.peek.stream {
+        # Keep the stream lazy; do not call `collect` just to inspect it.
+        $in
+    } else if ($md.peek.value?.0? != null) {
+        $in
+    }
+}
+```
+
+This is useful for commands that want different behavior for lists vs streams,
+or that need to decide based on a small sample while preserving streaming.
+
 ### Avoid repeated computation
 
 ```nu
@@ -93,6 +113,44 @@ open large.csv | chunks 1000 | each {|batch|
     $batch | process-batch
 } | flatten
 ```
+
+### `parse` stream behavior in 0.113+
+
+`parse` no longer implicitly splits byte/string streams into lines. It collects
+the stream and parses it as one input value. If you intend line-by-line parsing,
+insert `lines` explicitly:
+
+```nu
+# Whole-input parse: useful for multiline regexes
+open file.txt | parse -r r#'(?ms)^(?<id>\d+): (?<body>.*)$'#
+
+# Line-by-line parse
+open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
+```
+
+## Command Behavior Notes (0.113+)
+
+- `mkdir -v`, `mv -v`, and `rm -v` return structured tables. Script against
+  columns such as `path`, `created`, `deleted`, `error`, and `message` instead
+  of parsing human text.
+- `rm` and `mkdir` try the remaining path arguments even when one path errors.
+  Review partial-success behavior for destructive or setup scripts.
+- `from md` now defaults to concise output. Use `from md --verbose` when code
+  needs the full AST-style detail.
+- `watch`'s optional closure argument is deprecated. Pipe events into `each` or
+  iterate with `for event in (watch ...)`.
+- `grid` no longer should rely on the implicit `name` column. Pass the column
+  explicitly, for example `ls | grid name`.
+- `metadata set --datasource-ls` was removed. Use
+  `metadata set --path-columns [name]` for path metadata on table columns.
+- On Unix-like systems, `kill -9 pid` shorthand is no longer accepted. Use
+  `kill -s 9 <pid>` (or `kill -s 0 <pid>` for signal 0 checks).
+- `finally` runs for cleanup but its return value does not override `try` or
+  `catch`. Use the `try`/`catch` result for values and keep `finally` for side
+  effects such as cleanup.
+- In 0.113.1, `to yaml` emits more idiomatic plain scalars where safe and uses
+  block style for multiline strings. Do not assert exact quotes around every
+  string in YAML golden tests.
 
 ## Advanced Closure Patterns
 

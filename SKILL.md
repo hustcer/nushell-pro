@@ -21,7 +21,7 @@ Use this sequence whenever writing, reviewing, refactoring, or converting Nushel
    - Bash/POSIX conversion -> [Bash to Nushell](references/bash-to-nushell.md)
    - Modules, exports, scripts, or tests -> [Modules & Scripts](references/modules-and-scripts.md)
    - Types, records, tables, lists, or conversions -> [Data & Type System](references/data-and-types.md)
-   - Streaming, `par-each`, performance, closures, or memory behavior -> [Advanced Patterns](references/advanced-patterns.md)
+   - Streaming, `peek`, `parse`, `par-each`, performance, closures, or version-sensitive command behavior -> [Advanced Patterns](references/advanced-patterns.md)
    - Large datasets, Polars dataframes, columnar analytics, heavy group-by/join -> [Dataframes](references/dataframes.md)
    - Common mistakes and fixes -> [Anti-Patterns](references/anti-patterns.md)
 4. Apply the critical checks in this file first, then use references for details.
@@ -668,6 +668,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] Optional fields accessed with `?` operator
 - [ ] No `for` as final expression (use `each` instead)
 - [ ] `mut` not captured in closures
+- [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 
 ### 3. Style review
 
@@ -684,6 +685,7 @@ When reviewing a Nushell script, check these categories in order:
 
 - [ ] `par-each` for I/O or CPU-bound parallel work
 - [ ] `each --flatten` for streaming when appropriate
+- [ ] `peek` used when inspecting stream metadata/sample values without collecting
 - [ ] Expensive computations cached in `let` bindings
 - [ ] Large files streamed (lazy), not loaded entirely
 - [ ] Large/columnar datasets and heavy group-by/join use Polars dataframes (lazy), not native loops
@@ -711,6 +713,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | `each` on single record               | Use `items` or `transpose` instead               |
 | External cmd without `^`              | Use `^grep` to be explicit about externals       |
 | Native loop/`group-by` on huge data   | Use `polars` dataframes (lazy `open` + `group-by` + `collect`) |
+| `parse` on stream expecting old line splitting | Insert `lines` before `parse` for line-by-line parsing |
 
 ## Best Practices Summary
 

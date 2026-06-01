@@ -141,9 +141,18 @@ $df | polars select (polars selector numeric)           # all int/float columns
 $df | polars select (polars selector float)             # all float columns
 $df | polars select (polars selector by-name a c)       # explicit names
 $df | polars select (polars selector starts-with user)  # user_id, user_name, ...
+$df | polars select (polars selector ends-with _id)     # account_id, user_id, ...
+$df | polars select (polars selector contains name)     # columns containing substring
 $df | polars select (polars selector matches '_name$')  # regex on column names
+$df | polars select (polars selector by-index 0 -1)     # first and last columns
+$df | polars select (polars selector alpha)             # names made of letters
+$df | polars select (polars selector alphanumeric)      # names made of letters/digits
 $df | polars select (polars selector by-dtype str)      # by dtype
 ```
+
+Other useful selector families include `boolean`, `string`, `date`, `datetime`,
+`duration`, `temporal`, `list`, `array`, `struct`, `nested`, `exclude`, and
+`empty` for selector composition.
 
 ## Select, Filter, With-Column
 
