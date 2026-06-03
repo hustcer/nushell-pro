@@ -375,3 +375,58 @@ open app.log | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
 # Also good — intentionally parse the whole file with a multiline regex
 open changelog.txt | parse -r r#'(?ms)^## (?<version>.*?)\n(?<body>.*)'#
 ```
+
+## 26. Splitting Custom Command Flags Across Lines Without Grouping
+
+A newline can terminate a command invocation. If the next line starts with a
+named flag, Nushell may parse it as a separate statement that emits a plain
+string or produces a parse error instead of passing the flag to the command.
+
+```nu
+# Bad — flags start new statements
+build-report $target
+--format json
+--strict
+
+# Good — short calls stay on one line
+build-report $target --format json --strict
+
+# Good — explicit multiline invocation
+let report = (
+    build-report $target
+        --format json
+        --strict
+)
+```
+
+Use the same pattern when reviewing scripts generated from Bash-style wrapped
+commands: either keep named flags on the command line or group the whole call.
+
+## 27. Expecting Single-Quoted External Format Strings to Interpret Backslash Escapes
+
+Single-quoted Nushell strings do not process backslash escapes. Double-quoted
+strings do, but `\\t` means "literal backslash followed by t". Prefer one
+backslash in double quotes for simple escapes so Nushell passes a real tab or
+newline. Use `char tab` / `char nl` when the string also needs Nushell
+interpolation.
+
+```nu
+# Bad — single quotes pass literal "\t"
+^git log --format='%H\t%an'
+
+# Bad — double backslash also passes literal "\t"
+^git log --format="%H\\t%an"
+
+# Preferred — simple and Nushell passes an actual tab
+^git log --format="%H\t%an"
+
+# Good — explicit separator, useful with interpolation
+let tab = (char tab)
+^git log --format=$'%H($tab)%an'
+
+# Good — use real line delimiters when that makes parsing simpler
+let nl = (char nl)
+^some-tool --format=$'name=%n($nl)email=%e'
+| lines
+| parse '{key}={value}'
+```

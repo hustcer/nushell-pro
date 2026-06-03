@@ -170,6 +170,30 @@ def fetch-user [
 - Use rest params for variadic input: `def multi-greet [...names: string]`
 - Use `def --wrapped` to wrap external commands and forward unknown flags
 
+### Calling commands with named flags
+
+Keep short custom command calls with named flags on one line. If the invocation
+must span lines, wrap the whole command in parentheses so the continuation is
+explicit. A bare newline can terminate the command, leaving following `--flags`
+as separate statements that produce plain output or parse errors.
+
+```nu
+# Prefer for short calls
+build-report $target --format json --strict
+
+# Good — explicit multiline invocation
+let report = (
+    build-report $target
+        --format json
+        --strict
+)
+
+# Bad — flags start new statements
+build-report $target
+--format json
+--strict
+```
+
 ### Environment-modifying commands
 
 ```nu
@@ -421,6 +445,7 @@ String form mistakes are common and high impact. Decide with this table before w
 - Use `char nl` inside `$'...'` when interpolation is needed but the only escape-like value is a newline: `$'(char nl)Done'`.
 - Use `$"..."` only when the final string truly needs escape processing and interpolation in the same literal.
 - Do not build shell command strings for execution. Pass arguments separately: `^git commit -m $msg`, not `^sh -c $'git commit -m "($msg)"'`.
+- For external command format strings, prefer double-quoted strings with a single escape backslash for simple escapes (`^git log --format="%H\t%an"`). Do not double the backslash (`"%H\\t%an"`), because that produces a literal `\t`. Use `(char tab)` / `(char nl)` when interpolation is needed or explicit separators are clearer.
 - For regex literals, prefer raw strings and add `#` delimiters when the pattern contains quotes: `r#'name="[^"]+"'#`.
 
 **Common corrections:**
@@ -447,6 +472,16 @@ let label = $'($pkg.name)@($pkg.version)'
 let pattern = "(?:src|lib)/.*\\.nu"
 # Right
 let pattern = r#'(?:src|lib)/.*\.nu'#
+
+# Wrong: single quotes pass literal \t to the external formatter
+^git log --format='%H\t%an'
+# Wrong: double backslash preserves literal \t
+^git log --format="%H\\t%an"
+# Preferred: Nushell turns \t into an actual tab before calling git
+^git log --format="%H\t%an"
+# Also right: explicit separator, useful with interpolation
+let tab = (char tab)
+^git log --format=$'%H($tab)%an'
 ```
 
 ## Modules & Scripts
@@ -700,6 +735,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
 - [ ] `mut` not captured in closures
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
+- [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
 
 ### 3. Style review
 
@@ -707,6 +743,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] String format priority followed: simple literal -> `'...'`; interpolation without escapes -> `$'...'`; escapes -> `"..."`; interpolation plus escapes -> `$"..."`; regex -> `r#'...'#`
 - [ ] Strings containing `(...)` that should run Nushell expressions have `$` prefix
 - [ ] `$'...'` is not used for `\n`, `\t`, `\'`, or other escape processing
+- [ ] External command format strings use double quotes for simple escapes, or `char tab` / `char nl` when interpolation is needed
 - [ ] Formatting: spacing, line length, multi-line rules
 - [ ] Documentation comments on exported commands
 - [ ] `^` prefix on external commands
@@ -746,6 +783,8 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | External cmd without `^`              | Use `^grep` to be explicit about externals       |
 | Native loop/`group-by` on huge data   | Use `polars` dataframes (lazy `open` + `group-by` + `collect`) |
 | `parse` on stream expecting old line splitting | Insert `lines` before `parse` for line-by-line parsing |
+| Custom command flags on new lines     | Keep one line or wrap the invocation in `(...)`         |
+| Single-quoted or double-escaped external format `\t` | Use `"%H\t%an"` or `(char tab)` / `(char nl)` |
 
 ## Best Practices Summary
 
@@ -759,13 +798,17 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 8. **Use modules** — Organize related functions
 9. **Prefix external commands with `^`** — `^grep` not `grep`; Nushell builtins take precedence (e.g., `find` is Nushell's, not Unix `find`)
 10. **Use external tools when faster** — `^rg` for large file search, `^jq` for giant JSON
+11. **Group multiline command calls** — Keep named-flag invocations one-line or wrap them in `(...)`
+12. **Use clear separators in external formats** — Prefer double-quoted escapes when no interpolation is needed; use `(char tab)` / `(char nl)` when interpolation or explicit separators are needed
 
 ## Do Not Do These Things
 
 - Do not replace every quoted value with double quotes. Double quotes are for escape processing.
 - Do not use `$"..."` just because a string contains interpolation; use `$'...'` unless escapes are required.
 - Do not assume `\'`, `\n`, or `\t` work inside single-quoted or single-interpolated strings.
+- Do not expect single-quoted or double-escaped external format strings to process `\t` or `\n`; use one backslash in double quotes, `(char tab)`, or `(char nl)`.
 - Do not remove `$` from strings containing command interpolation such as `(ansi g)`, `(char nl)`, or `($value)`.
+- Do not split named flags for a custom command onto new statement lines; keep one line or wrap the invocation in parentheses.
 - Do not convert user input into `nu -c`, `source`, `^sh -c`, `^bash -c`, or `^cmd.exe /C` strings.
 - Do not parse structured Nushell output as plain strings when a record/table/list operation exists.
 - Do not run destructive examples during validation; parse-check them or use a temp fixture.

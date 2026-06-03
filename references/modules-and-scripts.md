@@ -153,6 +153,29 @@ nu myscript.nu test      # => Testing...
 
 **Important:** You must define a `main` command for subcommands to be accessible. An empty `def main [] {}` suffices.
 
+### Multiline calls with named flags
+
+When calling custom commands with named flags, keep short invocations on one
+line. If a call must span lines, wrap the whole invocation in parentheses. A
+bare newline can end the command before the flags are parsed.
+
+```nu
+# Good
+deploy staging --target api --dry-run
+
+# Good
+let plan = (
+    deploy staging
+        --target api
+        --dry-run
+)
+
+# Bad
+deploy staging
+--target api
+--dry-run
+```
+
 ### Shebang
 
 ```nu

@@ -84,6 +84,35 @@ print '(ansi g)Success!'    # Prints literal "(ansi g)"
 
 **Rule**: If a string contains `(...)` that should be evaluated as a command, always use `$'...'` or `$"..."`.
 
+### External command format strings
+
+For external command format strings, prefer double quotes with a single escape
+backslash for simple escape sequences so Nushell materializes the separator
+before calling the external tool. `"%H\t%an"` passes an actual tab; `"%H\\t%an"`
+passes a literal `\t`. Use `char tab` / `char nl` when the format string also
+needs Nushell interpolation or when explicit separators make parsing clearer.
+
+```nu
+# Wrong — single quotes pass literal "\t" to git
+^git log --format='%H\t%an'
+
+# Wrong — double backslash also passes literal "\t"
+^git log --format="%H\\t%an"
+
+# Preferred — simple and Nushell passes an actual tab
+^git log --format="%H\t%an"
+
+# Also good — explicit separator, useful with interpolation
+let tab = (char tab)
+^git log --format=$'%H($tab)%an'
+
+# Also good — use a real newline delimiter, then parse with lines/parse
+let nl = (char nl)
+^some-tool --format=$'field1=%a($nl)field2=%b'
+| lines
+| parse '{key}={value}'
+```
+
 ## String Type Overview
 
 | Format              | Syntax      | Escapes            | Interpolation | Use case                               |

@@ -82,6 +82,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `each` not used on single records (use `items` or `transpose`)
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
+- [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
 
 ### External commands
 
@@ -89,6 +90,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `find` (Nushell builtin) vs `^find` (Unix) distinction maintained
 - [ ] `sort` (Nushell builtin) vs `^sort` (Unix) distinction maintained
 - [ ] Arguments to external commands separated (not concatenated strings)
+- [ ] Format strings passed to external commands use double quotes for simple escapes, or `char tab` / `char nl` when interpolation is needed
 
 ---
 
