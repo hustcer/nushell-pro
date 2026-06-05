@@ -78,6 +78,39 @@ let args = [$user_file '--format' 'json']
 
 **The exception:** `^sh -c`, `^bash -c`, `^cmd.exe /C`, and `nu -c` explicitly invoke a shell interpreter, which WILL interpret the string. Never use these with untrusted input.
 
+**Allowlisting a command *string* before `nu -c` is fragile — pass argv instead.**
+Validating with a regex that "only allows `git show`/`git diff`" still feeds a
+single string to an interpreter, so any gap in the pattern becomes command
+injection. A common, real mistake: using `\s` as an argument separator —
+because `\s` matches **newlines** (a literal space does not), a payload like
+`"git diff abc\nrm -rf /"` slips through an allowlist such as
+`^git (diff|show)\s.*\s.*$` (the second `\s` swallows the injected newline), and
+`nu -c` then runs the second line as its own command. Validate structured argv/list data
+(or a deliberately simple token grammar), then run the external with
+**separated arguments** instead of re-interpreting the string:
+
+```nu
+# Fragile — the validated string still goes through an interpreter
+if (is-allowed $cmd) { ^nu -c $cmd }   # a newline in $cmd starts a second command
+
+# Robust — validate argv data and exec the binary directly
+let argv = $request.argv   # e.g. [git diff abc], not "git diff abc\n..."
+if (is-allowed-argv $argv) {
+    ^($argv | first) ...($argv | skip 1)   # no shell, no re-parsing of the string
+}
+```
+
+If a string allowlist is unavoidable, also reject control characters explicitly —
+anchored regexes (`^...$`) do not guarantee a single line, `\s` is broader than
+a literal space, and word-boundary/word-class shortcuts like `\b`/`\w` are not
+command-token rules. Do not use space-splitting as a shell parser; only split
+strings whose grammar has already rejected quotes, metacharacters, control
+characters, and arguments containing spaces:
+
+```nu
+if ($cmd =~ r#'[\r\n]'#) { return false }   # inside a validator: no embedded newlines
+```
+
 ### 2. Path validation
 
 ```nu
@@ -273,7 +306,7 @@ When Nushell calls CMD internal commands on Windows, arguments pass through `cmd
 
 When auditing a Nushell script for security:
 
-1. **Code injection** — Search for `nu -c`, `source`, `^sh`, `^bash`, `^cmd.exe`, `run-external` with user-controlled arguments
+1. **Code injection** — Search for `nu -c`, `source`, `^sh`, `^bash`, `^cmd.exe`, `run-external` with user-controlled arguments; a regex-validated command string re-fed to `nu -c` is still vulnerable (pass validated argv/list data as separated args instead)
 2. **Path traversal** — Search for `open`, `save`, `rm`, `cp`, `mv`, `glob` with user-provided paths; check for `..` validation
 3. **Credentials** — Search for `$env.*KEY`, `$env.*SECRET`, `$env.*PASSWORD`, `$env.*TOKEN`; check if scoped with `with-env`
 4. **External commands** — Verify `complete` or `try/catch` is used for error handling; check for `^` prefix

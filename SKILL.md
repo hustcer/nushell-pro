@@ -251,6 +251,8 @@ if ($record.field? != null) { }   # Check existence
 $list | default -e $fallback      # Default for empty collections
 ```
 
+`default`'s argument is **eager**: `$x | default $rec.maybe_missing` evaluates (and can error on) the fallback even when `$x` is non-null. Make the fallback null-safe (`default ($rec.maybe? | default 0)`) or branch with `if`. See [Anti-Patterns](references/anti-patterns.md).
+
 ### Large data: Polars dataframes
 
 Native `list`/`table` ops are row-oriented — ideal for small, interactive data.
@@ -632,6 +634,8 @@ source $user_provided_file
 ^bash -c $user_input
 ```
 
+Validating a command *string* (e.g. an allowlist regex) before `nu -c` is **not** sufficient: `\s` matches newlines, regex shortcuts like `\b`/`\w` are not command-token rules, and the string is still re-interpreted. Prefer validated argv/list data and run the binary with separated args instead. See [Security](references/security.md).
+
 ### Separate commands from arguments (prevent injection)
 
 ```nu
@@ -765,6 +769,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | Anti-Pattern                          | Fix                                              |
 | ------------------------------------- | ------------------------------------------------ |
 | `echo $value`                         | Just `$value` (implicit return)                  |
+| `echo 'msg'` to print output          | `print 'msg'` (`echo` returns a value; non-final value is dropped) |
 | `$"simple text"`                      | `'simple text'` (no interpolation needed)        |
 | `'User: ($name)'`                     | `$'User: ($name)'`                               |
 | `$'line\n'`                           | `$"line\n"` or `$'line(char nl)'`                |
@@ -779,6 +784,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | `$env.FOO = bar` inside `def`         | Use `def --env`                                  |
 | `{ \| x \| ... }` (space before pipe) | `{\|x\| ...}` (no space before params)           |
 | `$record.missing` (error)             | `$record.missing?` (returns null)                |
+| `val \| default $rec.missing` (arg is eager) | `default ($rec.missing? \| default ...)` (fallback evaluated even when non-null) |
 | `each` on single record               | Use `items` or `transpose` instead               |
 | External cmd without `^`              | Use `^grep` to be explicit about externals       |
 | Native loop/`group-by` on huge data   | Use `polars` dataframes (lazy `open` + `group-by` + `collect`) |
@@ -808,6 +814,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 - Do not assume `\'`, `\n`, or `\t` work inside single-quoted or single-interpolated strings.
 - Do not expect single-quoted or double-escaped external format strings to process `\t` or `\n`; use one backslash in double quotes, `(char tab)`, or `(char nl)`.
 - Do not remove `$` from strings containing command interpolation such as `(ansi g)`, `(char nl)`, or `($value)`.
+- Do not use `echo` to print user-facing messages — `echo` has no print side effect; its returned value is shown only when it becomes final output. Use `print` for side-effect output (`echo 'msg'; exit 1` prints nothing).
 - Do not split named flags for a custom command onto new statement lines; keep one line or wrap the invocation in parentheses.
 - Do not convert user input into `nu -c`, `source`, `^sh -c`, `^bash -c`, or `^cmd.exe /C` strings.
 - Do not parse structured Nushell output as plain strings when a record/table/list operation exists.

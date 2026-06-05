@@ -298,6 +298,12 @@ $list | default -e $fallback         # Default for empty collections
 $input | default 'anonymous'         # Default for null values
 ```
 
+> **`default`'s argument is eager.** `$x | default <expr>` evaluates `<expr>`
+> whether or not `$x` is null — `default` is a normal command, not lazy. So
+> `$x | default $rec.maybe_missing` throws when that column is absent, even when
+> `$x` is non-null. Make the fallback null-safe (`... | default ($rec.maybe? | default 0)`)
+> or branch with `if` when it is expensive.
+
 ## Discriminated Unions Pattern
 
 ```nu

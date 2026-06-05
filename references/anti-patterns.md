@@ -27,6 +27,26 @@ def process [] {
 }
 ```
 
+**Bash-migration trap — `echo` is not `print`.** Unlike Bash's `echo`,
+Nushell's `echo` only *produces a pipeline value*; it does not print as a side
+effect. That value is rendered only when it becomes final output. Used as a
+non-final statement, the value is silently discarded — so `echo 'msg'` meant as a
+"print this" statement displays **nothing**:
+
+```nu
+# Bad — nothing is printed; the echo value is dropped before exit
+if (has-ref $version) {
+    echo $'Version ($version) already exists'   # silently discarded!
+    exit 1
+}
+
+# Good — print writes to stdout as a side effect
+if (has-ref $version) {
+    print $'Version ($version) already exists'
+    exit 1
+}
+```
+
 ## 2. Using `for` as Final Expression
 
 `for` is a statement that returns `null`. Use `each` for transformations.
@@ -196,6 +216,26 @@ let name = if $input == null { 'anonymous' } else { $input }
 
 # Good — use default command
 let name = $input | default 'anonymous'
+```
+
+**Gotcha — the default *argument* is evaluated eagerly**, even when the input is
+non-null, because it is an ordinary argument (not a closure). A "fallback" that
+can itself error or is expensive runs regardless:
+
+```nu
+# Bad — $rec.maybe_missing is evaluated even when $primary is non-null,
+# and throws if that column is absent
+$primary | default $rec.maybe_missing
+
+# Bad — coalesce-style fallback still throws when the key is missing,
+# because default's argument is evaluated before default runs
+$delta.reasoning? | default $delta.content      # errors if there is no `content` key
+
+# Good — make the fallback itself null-safe
+$delta.reasoning? | default ($delta.content? | default '')
+
+# Good — branch explicitly when the fallback is expensive
+if ($primary | is-not-empty) { $primary } else { compute-fallback }
 ```
 
 ## 14. Manual JSON/YAML/TOML Parsing
