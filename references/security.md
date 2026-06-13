@@ -78,7 +78,7 @@ let args = [$user_file '--format' 'json']
 
 **The exception:** `^sh -c`, `^bash -c`, `^cmd.exe /C`, and `nu -c` explicitly invoke a shell interpreter, which WILL interpret the string. Never use these with untrusted input.
 
-**Allowlisting a command *string* before `nu -c` is fragile — pass argv instead.**
+**Allowlisting a command _string_ before `nu -c` is fragile — pass argv instead.**
 Validating with a regex that "only allows `git show`/`git diff`" still feeds a
 single string to an interpreter, so any gap in the pattern becomes command
 injection. A common, real mistake: using `\s` as an argument separator —
@@ -142,7 +142,22 @@ def safe-open [name: string, --base-dir: path = '.'] {
 }
 ```
 
-### 3. Credential handling
+### 3. Home-relative paths
+
+For paths that intentionally live under the user's home directory, compute the
+prefix from `$nu.home-dir` instead of hardcoding a machine-specific absolute
+path. This is especially important for constants used by `source`/`use`, where
+`const` is required for parse-time resolution.
+
+```nu
+# Good — portable across users and machines
+const work_dir = $'($nu.home-dir)/work/dir'
+
+# Bad — tied to one local account
+const work_dir = '/user/name/work/dir'
+```
+
+### 4. Credential handling
 
 ```nu
 # Bad — credential persists in environment, visible to all child processes
@@ -167,7 +182,7 @@ http get $url -H {Authorization: $'Bearer ($token)'}
 $password | ^tool --password-stdin
 ```
 
-### 4. Safe file operations
+### 5. Safe file operations
 
 ```nu
 # Bad — predictable temp file path (race condition)
@@ -190,7 +205,7 @@ rm -f $tmp
 let tmpdir = (^mktemp -d | str trim)
 ```
 
-### 5. Safe rm and destructive operations
+### 6. Safe rm and destructive operations
 
 ```nu
 # Bad — glob from user input, could match anything
@@ -214,7 +229,7 @@ def safe-remove [target: path] {
 }
 ```
 
-### 6. Glob safety
+### 7. Glob safety
 
 ```nu
 # Bad — user input could contain glob characters
@@ -233,7 +248,7 @@ def safe-glob [pattern: string, --base-dir: path = '.'] {
 }
 ```
 
-### 7. External command error handling
+### 8. External command error handling
 
 ```nu
 # Bad — silently ignores failures
@@ -254,7 +269,7 @@ try {
 }
 ```
 
-### 8. Environment variable safety
+### 9. Environment variable safety
 
 ```nu
 # Sanitize PATH to prevent command hijacking
@@ -308,9 +323,10 @@ When auditing a Nushell script for security:
 
 1. **Code injection** — Search for `nu -c`, `source`, `^sh`, `^bash`, `^cmd.exe`, `run-external` with user-controlled arguments; a regex-validated command string re-fed to `nu -c` is still vulnerable (pass validated argv/list data as separated args instead)
 2. **Path traversal** — Search for `open`, `save`, `rm`, `cp`, `mv`, `glob` with user-provided paths; check for `..` validation
-3. **Credentials** — Search for `$env.*KEY`, `$env.*SECRET`, `$env.*PASSWORD`, `$env.*TOKEN`; check if scoped with `with-env`
-4. **External commands** — Verify `complete` or `try/catch` is used for error handling; check for `^` prefix
-5. **File operations** — Check temp file creation uses `mktemp`; verify `rm` operations are guarded
-6. **Glob patterns** — Check if user input flows into `glob` or `ls` patterns; verify `--depth` limits
-7. **Environment** — Check if `$env.PATH` or `$env.LD_PRELOAD` could be poisoned
-8. **Error masking** — Verify errors are not silently swallowed; check `try` blocks have meaningful `catch`
+3. **Home paths** — Search for hardcoded home-directory prefixes like `/Users/name`, `/home/name`, or `C:\Users\name`; compute them from `$nu.home-dir` instead
+4. **Credentials** — Search for `$env.*KEY`, `$env.*SECRET`, `$env.*PASSWORD`, `$env.*TOKEN`; check if scoped with `with-env`
+5. **External commands** — Verify `complete` or `try/catch` is used for error handling; check for `^` prefix
+6. **File operations** — Check temp file creation uses `mktemp`; verify `rm` operations are guarded
+7. **Glob patterns** — Check if user input flows into `glob` or `ls` patterns; verify `--depth` limits
+8. **Environment** — Check if `$env.PATH` or `$env.LD_PRELOAD` could be poisoned
+9. **Error masking** — Verify errors are not silently swallowed; check `try` blocks have meaningful `catch`

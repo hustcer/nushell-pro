@@ -402,6 +402,17 @@ let lib_path = 'src/lib.nu'
 source $lib_path                  # Error: let is runtime only
 ```
 
+When a parse-time path needs to point inside the user's home directory, compute
+it from `$nu.home-dir` instead of hardcoding a machine-specific absolute path.
+
+```nu
+# Good — portable across users and machines
+const work_dir = $'($nu.home-dir)/work/dir'
+
+# Bad — hardcoded user home path
+const work_dir = '/user/name/work/dir'
+```
+
 ### Closures cannot capture mut
 
 ```nu
@@ -427,7 +438,7 @@ String form mistakes are common and high impact. Decide with this table before w
 | Interpolation without escape sequences | `$'User: ($name)'` | `$"User: ($name)"` |
 | Literal escape sequence such as newline or tab | `"line1\nline2"` | `'line1\nline2'` |
 | Interpolation plus real escape sequences | `$"($name)\n"` | `$'($name)\n'` |
-| Regex pattern or text with many quotes/backslashes | `r#'(?:src|lib)/.*\.nu'#` | `"(?:src|lib)/.*\\.nu"` |
+| Regex pattern or text with many quotes/backslashes | `r#'name="[^"]+"'#` | `"name=\"[^\"]+\""` |
 | Path or glob argument with spaces | `` `./My Dir/*.nu` `` | Escaped Bash-style strings |
 
 **Decision order:**
@@ -579,6 +590,7 @@ let result = (do -c { ^some-cmd })
 ```
 
 **When to use each approach:**
+
 - `do -i` — Fire-and-forget, or when you only need a default on failure
 - `do -c` — Catch errors as values to abort downstream pipeline on failure
 - `try/catch` — When you need to inspect or log the error
@@ -634,7 +646,7 @@ source $user_provided_file
 ^bash -c $user_input
 ```
 
-Validating a command *string* (e.g. an allowlist regex) before `nu -c` is **not** sufficient: `\s` matches newlines, regex shortcuts like `\b`/`\w` are not command-token rules, and the string is still re-interpreted. Prefer validated argv/list data and run the binary with separated args instead. See [Security](references/security.md).
+Validating a command _string_ (e.g. an allowlist regex) before `nu -c` is **not** sufficient: `\s` matches newlines, regex shortcuts like `\b`/`\w` are not command-token rules, and the string is still re-interpreted. Prefer validated argv/list data and run the binary with separated args instead. See [Security](references/security.md).
 
 ### Separate commands from arguments (prevent injection)
 
@@ -724,6 +736,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] No `nu -c` / `source` / `^sh -c` with untrusted input
 - [ ] No credential hardcoding or env leaking
 - [ ] Paths from user input are validated (no traversal)
+- [ ] Home-directory paths are computed from `$nu.home-dir`, not hardcoded user paths
 - [ ] External commands use argument separation (not string concatenation)
 - [ ] Temp files use `mktemp`, not predictable paths
 - [ ] `rm` operations are guarded and intentional
@@ -766,31 +779,32 @@ When reviewing a Nushell script, check these categories in order:
 
 Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed explanations.
 
-| Anti-Pattern                          | Fix                                              |
-| ------------------------------------- | ------------------------------------------------ |
-| `echo $value`                         | Just `$value` (implicit return)                  |
-| `echo 'msg'` to print output          | `print 'msg'` (`echo` returns a value; non-final value is dropped) |
-| `$"simple text"`                      | `'simple text'` (no interpolation needed)        |
-| `'User: ($name)'`                     | `$'User: ($name)'`                               |
-| `$'line\n'`                           | `$"line\n"` or `$'line(char nl)'`                |
-| `"[a-z]+\\.nu"`                      | `r#'[a-z]+\.nu'#`                               |
-| `for` as final expression             | Use `each` (for doesn't return a value)          |
-| `mut` for accumulation                | Use `reduce` or `math sum`                       |
-| Long `if`/`else if` chains on one value | Prefer `match` with `_` fallback              |
-| `let path = ...; source $path`        | `const path = ...; source $path`                 |
-| `"hello" > file.txt`                  | `'hello' \| save file.txt`                       |
-| `grep pattern`                        | `where $it =~ pattern` or built-in `find`        |
-| Parsing string output                 | Use structured commands (`ls`, `ps`, `http get`) |
-| `$env.FOO = bar` inside `def`         | Use `def --env`                                  |
-| `{ \| x \| ... }` (space before pipe) | `{\|x\| ...}` (no space before params)           |
-| `$record.missing` (error)             | `$record.missing?` (returns null)                |
-| `val \| default $rec.missing` (arg is eager) | `default ($rec.missing? \| default ...)` (fallback evaluated even when non-null) |
-| `each` on single record               | Use `items` or `transpose` instead               |
-| External cmd without `^`              | Use `^grep` to be explicit about externals       |
-| Native loop/`group-by` on huge data   | Use `polars` dataframes (lazy `open` + `group-by` + `collect`) |
-| `parse` on stream expecting old line splitting | Insert `lines` before `parse` for line-by-line parsing |
-| Custom command flags on new lines     | Keep one line or wrap the invocation in `(...)`         |
-| Single-quoted or double-escaped external format `\t` | Use `"%H\t%an"` or `(char tab)` / `(char nl)` |
+| Anti-Pattern                                         | Fix                                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `echo $value`                                        | Just `$value` (implicit return)                                                  |
+| `echo 'msg'` to print output                         | `print 'msg'` (`echo` returns a value; non-final value is dropped)               |
+| `$"simple text"`                                     | `'simple text'` (no interpolation needed)                                        |
+| `'User: ($name)'`                                    | `$'User: ($name)'`                                                               |
+| `$'line\n'`                                          | `$"line\n"` or `$'line(char nl)'`                                                |
+| `"[a-z]+\\.nu"`                                      | `r#'[a-z]+\.nu'#`                                                                |
+| `for` as final expression                            | Use `each` (for doesn't return a value)                                          |
+| `mut` for accumulation                               | Use `reduce` or `math sum`                                                       |
+| Long `if`/`else if` chains on one value              | Prefer `match` with `_` fallback                                                 |
+| `let path = ...; source $path`                       | `const path = ...; source $path`                                                 |
+| `const work_dir = '/user/name/work/dir'`             | `const work_dir = $'($nu.home-dir)/work/dir'`                                    |
+| `"hello" > file.txt`                                 | `'hello' \| save file.txt`                                                       |
+| `grep pattern`                                       | `where $it =~ pattern` or built-in `find`                                        |
+| Parsing string output                                | Use structured commands (`ls`, `ps`, `http get`)                                 |
+| `$env.FOO = bar` inside `def`                        | Use `def --env`                                                                  |
+| `{ \| x \| ... }` (space before pipe)                | `{\|x\| ...}` (no space before params)                                           |
+| `$record.missing` (error)                            | `$record.missing?` (returns null)                                                |
+| `val \| default $rec.missing` (arg is eager)         | `default ($rec.missing? \| default ...)` (fallback evaluated even when non-null) |
+| `each` on single record                              | Use `items` or `transpose` instead                                               |
+| External cmd without `^`                             | Use `^grep` to be explicit about externals                                       |
+| Native loop/`group-by` on huge data                  | Use `polars` dataframes (lazy `open` + `group-by` + `collect`)                   |
+| `parse` on stream expecting old line splitting       | Insert `lines` before `parse` for line-by-line parsing                           |
+| Custom command flags on new lines                    | Keep one line or wrap the invocation in `(...)`                                  |
+| Single-quoted or double-escaped external format `\t` | Use `"%H\t%an"` or `(char tab)` / `(char nl)`                                    |
 
 ## Best Practices Summary
 
