@@ -13,7 +13,7 @@ Write idiomatic, performant, secure, and maintainable [Nushell](https://www.nush
 - **Type System** — Type hierarchy, complex types, type guards, null safety patterns
 - **Bash Conversion** — Side-by-side Bash-to-Nushell translation guide
 - **Performance** — Parallel processing with `par-each`, streaming patterns, memory-efficient techniques
-- **Data Processing** — Polars dataframes (lazy/eager), group-by, joins, expressions, column selectors, and large-data / columnar analytics
+- **Data Processing** — Polars dataframes (lazy/eager), group-by, joins, window/sequence ops, nested list/struct data, reshaping, binning, time zones, SQL, column selectors, and large-data / columnar analytics
 
 ## Install
 

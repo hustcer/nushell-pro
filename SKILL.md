@@ -269,8 +269,11 @@ polars open big.csv                       # lazy by default (a plan, not yet run
 | polars collect                          # execute the optimized plan once
 ```
 
-Choose native vs Polars (and eager vs lazy), and see the full command set, in
-[Dataframes](references/dataframes.md).
+Beyond group-by/join, Polars covers window/sequence ops (`over`, `shift`,
+`cumulative`, `rolling`), nested list/struct data (`explode`, `unnest`),
+reshaping (`pivot`/`unpivot`), time zones, SQL (`polars query`), and a
+Nushell-closure escape hatch (`map-batches`). Choose native vs Polars (and eager
+vs lazy), and see the full command set, in [Dataframes](references/dataframes.md).
 
 ## Pipeline & Functional Patterns
 
@@ -858,7 +861,7 @@ When writing or reviewing Nushell code:
 - [String Formats](references/string-formats.md) — String type priority and conversion rules
 - [Anti-Patterns](references/anti-patterns.md) — Common mistakes with detailed fixes
 - [Data & Type System](references/data-and-types.md) — Type hierarchy, collections, conversions, type guards
-- [Dataframes](references/dataframes.md) — Polars dataframes: lazy/eager, group-by, joins, expressions, large-data processing
+- [Dataframes](references/dataframes.md) — Polars dataframes: lazy/eager, group-by, joins, window/sequence ops, nested list/struct data, reshaping, time zones, SQL, large-data processing
 - [Advanced Patterns](references/advanced-patterns.md) — Performance, streaming, closures, memory efficiency
 - [Modules & Scripts](references/modules-and-scripts.md) — Module system, testing, attributes
 - [Bash to Nushell](references/bash-to-nushell.md) — Conversion guide from Bash/POSIX
