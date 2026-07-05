@@ -67,12 +67,32 @@ use increment
 export module utils.nu      # Commands accessed as: my-module utils <cmd>
 ```
 
+Nu 0.114+ no longer imports exported submodules implicitly when the parent
+module is imported. If callers should reach a submodule through the parent
+namespace, re-export it explicitly from the parent:
+
+```nu
+export module utils {
+    export def clean [] { 'clean' }
+}
+
+export use utils             # Enables: my-module utils clean
+```
+
+Without the explicit `export use utils`, `use my-module` imports the parent
+exports but not `my-module utils clean`.
+
 ### `export use` — Flattens into parent namespace
 
 ```nu
 # mod.nu
 export use utils.nu *       # Commands accessed as: my-module <cmd>
 ```
+
+Use `export use utils.nu *` only when flattening the commands into the parent is
+the intended public API. Use `export use utils.nu` when preserving the submodule
+namespace is clearer. A `use` inside another module does not run the imported
+module's `export-env` block, matching the previous implicit behavior.
 
 ## Environment Setup
 
@@ -120,6 +140,40 @@ greet 'World'
 ```
 
 Definitions run first (regardless of position in file), then the script body runs top-to-bottom.
+
+### Pipeline scripts with `run` (Nu 0.114+)
+
+`run` lets a `.nu` script act as a pipeline stage. Prefer it when the script
+should transform pipeline input and keep its definitions isolated from the
+caller.
+
+```nu
+# shout.nu
+str uppercase
+```
+
+```nu
+'Hello Nushell!' | run shout.nu | str camel-case
+```
+
+If a top-level `def main` exists, `run` invokes it and passes pipeline input
+through the declared signature:
+
+```nu
+# length-plus.nu
+def main []: string -> int {
+    str length
+}
+
+'Hello' | run length-plus.nu
+```
+
+`run` is a parser keyword, so the target script file must already exist when the
+calling block is parsed; do not create the script earlier in the same parsed
+block and expect `run` to see it. Resolution uses the current directory,
+`NU_LIB_DIRS`, or explicit paths; it does not search `PATH`. Use
+`run --full-reparse script.nu` in file-watch loops or repeated test runs when
+the script file changes between invocations.
 
 ### Parameterized scripts with main
 
@@ -201,6 +255,7 @@ For stdin access: `#!/usr/bin/env -S nu --stdin`
 | `const` values         | Yes             | No (already resolved) |
 | `let` values           | No              | Yes                   |
 | `source` / `use` paths | Must be known   | N/A                   |
+| `run` script paths     | File must exist  | Runs isolated         |
 | Type checking          | Yes             | Some                  |
 | `def` names            | Must be literal | N/A                   |
 | Syntax errors          | Caught here     | N/A                   |

@@ -10,6 +10,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 - [ ] No `nu -c $variable` with untrusted input
 - [ ] No `source $variable` with runtime paths (must be `const`)
+- [ ] No `run $variable` with user-controlled `.nu` script paths
 - [ ] No `^sh -c`, `^bash -c`, or `^cmd.exe /C` with interpolated user input
 - [ ] No `run-external` with user-controlled command names
 
@@ -55,7 +56,9 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] I/O pipeline signatures (`]: type -> type {`) match actual behavior
 - [ ] Complex types use proper syntax: `record<name: string>`, `list<int>`, `table<col: type>`
 - [ ] Optional parameters use `?` suffix: `name?: string`
+- [ ] Optional params/flags without defaults are handled as `oneof<T, nothing>`
 - [ ] Rest parameters typed: `...args: string`
+- [ ] Runtime assignment annotations are valid under Nu 0.114's default `enforce-runtime-annotations`
 
 ### Error handling
 
@@ -63,6 +66,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] External commands checked with `complete` when exit code matters
 - [ ] `catch` blocks include meaningful error context (not empty)
 - [ ] `finally` used for cleanup side effects, not as the returned value
+- [ ] `catch` blocks read `$err.details` for structured diagnostics, not removed `$err.json`
 - [ ] Custom errors include `label` with `span` for good error messages
 - [ ] No bare `error make {msg: '...'}` without span when metadata is available
 
@@ -79,10 +83,12 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `mut` variables not captured in closures (will error)
 - [ ] `source`/`use` paths are `const`, not `let`
 - [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
+- [ ] `if`/`match` expressions have `else`/`_` fallbacks when a non-null output is required
 - [ ] `each` not used on single records (use `items` or `transpose`)
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
 - [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
+- [ ] SemVer logic uses `into semver` / `into semver-range` / `semver bump`, not string surgery
 
 ### External commands
 
@@ -111,6 +117,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] Single-quoted interpolation preferred: `$'val: ($x)'` not `$"val: ($x)"`
 - [ ] Double quotes only when escape sequences needed: `"\n"`, `"\t"`
 - [ ] Raw strings for regex: `r#'pattern'#`
+- [ ] `str uppercase` / `str lowercase` used instead of deprecated `str upcase` / `str downcase`
 
 ### Pipeline & functional style
 
@@ -140,6 +147,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 - [ ] Only necessary definitions are `export`-ed
 - [ ] `export def main` used when command matches module name
+- [ ] Submodules are re-exported explicitly when callers need the submodule namespace in Nu 0.114+
 - [ ] Private helpers are not exported
 - [ ] `export-env` for environment setup blocks
 
@@ -185,6 +193,8 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] `path exists` checked before `open` when file may not exist
 - [ ] `save --force` used intentionally (overwrites without warning)
 - [ ] File encoding handled appropriately (`open --raw` for binary)
+- [ ] `from xlsx` / `from ods` output handled as a record of sheet tables
+- [ ] Spreadsheet imports use `--noheaders`, `--first-row`, or `--prefer-integers` instead of removed `--header-row`
 - [ ] `mkdir -v` / `mv -v` / `rm -v` outputs treated as tables, not parsed text
 - [ ] `rm` / `mkdir` partial-success behavior considered when multiple paths are passed
 

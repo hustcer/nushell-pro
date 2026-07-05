@@ -470,3 +470,108 @@ let nl = (char nl)
 | lines
 | parse '{key}={value}'
 ```
+
+## 28. Using Deprecated Case Conversion Commands
+
+Nu 0.114 deprecates `str upcase` and `str downcase`.
+
+```nu
+# Bad — deprecated
+$name | str upcase
+$name | str downcase
+
+# Good
+$name | str uppercase
+$name | str lowercase
+```
+
+## 29. Depending on Implicit Submodule Imports
+
+Nu 0.114 no longer imports exported submodules implicitly when the parent module
+is imported.
+
+```nu
+# Bad — callers expect `use foo` to expose `foo sub cmd` implicitly
+export module sub {
+    export def cmd [] { 'ok' }
+}
+
+# Good — re-export the intended submodule surface
+export module sub {
+    export def cmd [] { 'ok' }
+}
+export use sub
+```
+
+Use `export use sub *` only when flattening submodule commands into the parent
+namespace is the public API you want.
+
+## 30. Treating Optional Parameters as Non-Null
+
+Optional parameters and named flags without defaults are `oneof<T, nothing>` in
+Nu 0.114+. Handle `null` before arithmetic, string operations, or assignment to
+a non-null annotated variable.
+
+```nu
+# Bad — $count can be null
+def repeat [count?: int] {
+    0..<$count
+}
+
+# Good — provide a default
+def repeat [count?: int = 0] {
+    0..<$count
+}
+
+# Also good — branch explicitly
+def repeat [count?: int] {
+    let count = ($count | default 0)
+    0..<$count
+}
+```
+
+## 31. Hand-Rolling Semantic Version Logic
+
+Lexical string sort and manual splitting are wrong for SemVer (`1.10.0` sorts
+before `1.2.0` as a string).
+
+```nu
+# Bad
+['1.10.0' '1.2.0'] | sort
+$version | split row '.' | update 1 {|n| ($n | into int) + 1 }
+
+# Good
+['1.10.0' '1.2.0'] | each { into semver } | sort
+'1.2.3' | into semver | semver bump minor
+'1.2.3' | into semver | $in in ('>=1.0.0' | into semver-range)
+```
+
+## 32. Reading Removed Error JSON
+
+Nu 0.114 removed `$err.json` from `catch` records. Use `$err.details` directly.
+
+```nu
+# Bad
+try { risky-command } catch {|err| $err.json | from json }
+
+# Good
+try { risky-command } catch {|err| $err.details }
+```
+
+## 33. Using Removed Spreadsheet Header Flags
+
+`from xlsx --header-row` was removed. `from xlsx` and `from ods` return a record
+of sheet tables and use explicit header/start controls.
+
+```nu
+# Bad
+open report.xlsx --raw | from xlsx --header-row 2
+
+# Good — one sheet table from the workbook record
+open report.xlsx | get Sheet1
+
+# Good — control headers and starting rows
+open report.xlsx --raw | from xlsx --noheaders
+open report.xlsx --raw | from xlsx --first-row 0
+open report.xlsx --raw | from xlsx --prefer-integers
+```

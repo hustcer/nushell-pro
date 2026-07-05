@@ -7,9 +7,9 @@ the **Polars dataframes** provided by the `polars` plugin. Dataframes store data
 column-wise (Apache Arrow) and run on the Polars engine, which is dramatically
 faster and more memory-efficient than native loops for this class of work.
 
-> All commands and outputs below were verified against `nu_plugin_polars 0.113`
-> (Nushell `0.113`). Polars evolves quickly; when in doubt, confirm a command's
-> signature with `scope commands | where name == 'polars <cmd>'` or
+> Command shapes below are maintained for Nu 0.114 / Polars 0.54 behavior.
+> Polars evolves quickly; when in doubt, confirm a command's signature with
+> `scope commands | where name == 'polars <cmd>'` or
 > `help polars <cmd>` rather than trusting older docs. The plugin currently
 > ships ~150 `polars *` subcommands — `help polars` lists them all.
 
@@ -168,7 +168,8 @@ $df | polars with-column (
 
 Selectors pick columns by property instead of by exact name — handy for wide
 frames. They produce a `polars_selector` usable anywhere a column set is
-expected (`select`, `with-column`, `is-in`, etc.).
+expected (`select`, `with-column`, `is-in`, etc.). In Nu 0.114+, commands that
+accept Polars expressions can accept selectors as input too.
 
 ```nu
 $df | polars select (polars selector numeric)           # all int/float columns
@@ -319,7 +320,7 @@ $left | polars join-where $right ((polars col amount) > (polars col threshold))
 # => 3 rows. Flags: --diagonal (union mismatched columns), --to-supertypes
 #    (reconcile dtypes), --rechunk, --no-maintain-order.
 
-# append: note the counter-intuitive flag semantics (verified on 0.113) —
+# append: note the counter-intuitive flag semantics (verified on 0.114) —
 let a = ([[a b]; [1 2] [3 4]] | polars into-df)
 $a | polars append $a          # DEFAULT: adds the other frame as NEW COLUMNS -> a b a_x b_x
 $a | polars append $a --col    # --col: stacks ROWS -> 4 rows of (a b)
@@ -347,7 +348,8 @@ $a | polars append $a --col    # --col: stacks ROWS -> 4 rows of (a b)
 
 `polars pivot` also takes `--aggregate (-a)` (first/sum/min/max/mean/median/count/
 last or a custom expression) when multiple rows collapse into one cell, plus
-`--separator`, `--maintain-order`, `--stable`, and `--streamable`.
+`--separator`, `--maintain-order`, `--always-combine-names`, `--stable`, and
+`--streamable`.
 
 ## Nested Data: Lists and Structs
 
@@ -364,6 +366,7 @@ between nested and flat layouts.
 
 # implode: the inverse — aggregate a column's values into a single list (in agg/select)
 $df | polars select (polars col v | polars implode)
+# Nu 0.114+: `polars implode` supports --maintain-order
 
 # unnest: split a struct column into one column per field (inserted in place)
 [[id person]; [1 {name: Bob, age: 36}] [2 {name: Betty, age: 63}]]
@@ -375,6 +378,7 @@ $df | polars select id (polars col person | polars struct-json-encode | polars a
 
 # membership tests
 $df | polars with-column (polars col a | polars is-in [one two] | polars as a_in)   # scalar in set
+# Nu 0.114+: `polars is-in` supports --maintain-order
 $df | polars with-column (polars col tags | polars list-contains (polars lit urgent) | polars as has)  # element in list column
 ```
 
@@ -398,6 +402,9 @@ $df | polars with-column (polars col tags | polars list-contains (polars lit urg
 ```nu
 # polars math: scalar math over column expressions
 #   abs, sign, sqrt, exp, log <base; default e>, log1p, sin, cos, dot <expr>
+#   bitwise-and, bitwise-or, bitwise-xor, bitwise-count-ones, bitwise-count-zeros,
+#   bitwise-leading-ones, bitwise-leading-zeros, bitwise-trailing-ones,
+#   bitwise-trailing-zeros
 [[a]; [-1] [4]]
 | polars into-df
 | polars select (polars col a | polars math abs | polars as a_abs)
@@ -483,6 +490,8 @@ $df | polars drop-duplicates                   # drop fully-duplicate rows
 # `old` is a list/record of values to match; `new` is the list of replacements.
 $df | polars with-column (polars col grade | polars replace [A B] [4 3] | polars as gpa)
 # Flags: --strict (every value must match), --default <expr> (value for unmatched).
+# Nu 0.114 / Polars 0.54: when `--strict` and `--return-dtype` change the dtype,
+# pass `--default <value>` explicitly.
 
 # polars set / set-with-idx / filter-with: mask- or index-based value assignment (eager series)
 ```
@@ -549,7 +558,7 @@ $df | polars save out.csv --csv-delimiter ';' --csv-no-header
 Flags include `--type` (force format), `--csv-delimiter`, `--csv-no-header`, and
 `--avro-compression`.
 
-## Migration Notes (older docs → 0.113)
+## Migration Notes (older docs → 0.113/0.114)
 
 | Old | Now |
 | --- | --- |
@@ -566,7 +575,7 @@ New since older docs: `polars over` (window), `polars shift`/`cumulative`/
 `rolling` (sequence ops), `polars selector *` (column-select DSL),
 `polars when`/`otherwise`, `polars join-where` (non-equi join), `polars concat`,
 `polars cut`/`qcut`/`dummies` (binning + one-hot), `polars math`/`horizontal`
-(numeric ops), `polars explode`/`implode`/`unnest`/`struct-json-encode` (nested
+(numeric and bitwise ops), `polars explode`/`implode`/`unnest`/`struct-json-encode` (nested
 data), `polars convert-time-zone`/`replace-time-zone`/`truncate`/`datepart`
 (time zones + buckets), `polars map-batches` (Nushell-closure escape hatch),
 `polars profile`, `polars cache`, `polars store-get`, `polars into-repr`,

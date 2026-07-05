@@ -28,5 +28,15 @@
     "id": 6,
     "prompt": "Review a Nushell script where a custom command call puts `--format json` and `--strict` on following lines, and external examples use `git log --format='%H\\t%an'` or `git log --format=\"%H\\\\t%an\"` while expecting tab-separated output.",
     "expected": "Flag the multiline named-flag call unless it is grouped with parentheses, and recommend `--format=\"%H\\t%an\"` as the simple preferred fix: one backslash in double quotes. Use `(char tab)` / `(char nl)` when interpolation or explicit separators are needed."
+  },
+  {
+    "id": 7,
+    "prompt": "Review this Nu 0.114 module: it exports `module sub { export def cmd [] {} }`, callers do `use foo` then `foo sub cmd`, and a catch block reads `$err.json | from json`.",
+    "expected": "Flag that submodules are no longer implicitly imported and recommend an explicit `export use sub`; replace `$err.json | from json` with `$err.details`."
+  },
+  {
+    "id": 8,
+    "prompt": "Modernize a release script that sorts versions as strings, splits them on `.`, uses `str upcase`, and defines `def bump [part?: string] { ... }` without handling null.",
+    "expected": "Use `into semver`, `into semver-range`, and `semver bump` for version logic; replace `str upcase` with `str uppercase`; handle the optional `part` as `oneof<string, nothing>` with a default or explicit branch."
   }
 ]

@@ -32,13 +32,18 @@ Quick reference for converting common Bash patterns to idiomatic Nushell.
 
 | Bash              | Nushell                             |
 | ----------------- | ----------------------------------- |
-| `${var^^}`        | `$var \| str upcase`                |
-| `${var,,}`        | `$var \| str downcase`              |
+| `${var^^}`        | `$var \| str uppercase`             |
+| `${var,,}`        | `$var \| str lowercase`             |
 | `${var:0:5}`      | `$var \| str substring 0..5`        |
 | `${#var}`         | `$var \| str length`                |
 | `${var/old/new}`  | `$var \| str replace old new`       |
 | `${var//old/new}` | `$var \| str replace --all old new` |
 | `${var%.ext}`     | `$var \| path parse \| get stem`    |
+
+Nu 0.114 also adds stream-specific `ignore` flags. Use them when they make a
+Bash redirection clearer: `ignore --stderr` consumes stderr, `ignore --stdout`
+consumes stdout, and `ignore --show-errors` keeps errors visible while updating
+`$env.LAST_EXIT_CODE`.
 
 ## Conditionals
 
@@ -307,4 +312,19 @@ EOF
 # Nushell raw string
 r#'line 1
 line 2'#
+```
+
+### Semantic versions
+
+```bash
+# Bash — fragile lexical/manual version handling
+printf '%s\n' "$@" | sort -V
+IFS=. read -r major minor patch <<< "$version"
+```
+
+```nu
+# Nushell 0.114+ — SemVer values sort and bump correctly
+$versions | each { into semver } | sort
+$version | into semver | semver bump patch
+$version | into semver | $in in ('>=1.0.0' | into semver-range)
 ```

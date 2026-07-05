@@ -128,7 +128,7 @@ open file.txt | parse -r r#'(?ms)^(?<id>\d+): (?<body>.*)$'#
 open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
 ```
 
-## Command Behavior Notes (0.113+)
+## Command Behavior Notes (0.113 / 0.114+)
 
 - `mkdir -v`, `mv -v`, and `rm -v` return structured tables. Script against
   columns such as `path`, `created`, `deleted`, `error`, and `message` instead
@@ -139,8 +139,9 @@ open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
   needs the full AST-style detail.
 - `watch`'s optional closure argument is deprecated. Pipe events into `each` or
   iterate with `for event in (watch ...)`.
-- `grid` no longer should rely on the implicit `name` column. Pass the column
-  explicitly, for example `ls | grid name`.
+- `grid` no longer accepts a single record as input and no longer relies on the
+  implicit `name` column. Pass a table and the column explicitly, for example
+  `ls | grid name`.
 - `metadata set --datasource-ls` was removed. Use
   `metadata set --path-columns [name]` for path metadata on table columns.
 - On Unix-like systems, `kill -9 pid` shorthand is no longer accepted. Use
@@ -151,6 +152,31 @@ open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
 - In 0.113.1, `to yaml` emits more idiomatic plain scalars where safe and uses
   block style for multiline strings. Do not assert exact quotes around every
   string in YAML golden tests.
+- Nu 0.114 supports POSIX-style `--` for builtins, custom commands, and
+  `def --wrapped` commands. Use it for dash-prefixed positional values; known
+  externs still receive `--` and parse it themselves.
+- Use `run script.nu` for reusable pipeline-stage scripts. It is a parser
+  keyword, so the script must exist when the calling block is parsed. It accepts
+  pipeline input, runs isolated from the caller, and supports `--full-reparse`
+  for watch or repeated execution loops.
+- `try/catch` error records now expose structured diagnostics as `$err.details`;
+  `$err.json` was removed.
+- `str upcase` / `str downcase` are deprecated; use `str uppercase` /
+  `str lowercase`.
+- `split row` and `split column` support `--right` to count skipped splits from
+  the right side, useful for package/version strings.
+- `ignore` supports `--stderr`, `--stdout`, and `--show-errors` for precise
+  stream handling.
+- `append` accepts multiple values; `union`, `intersect`, `difference`,
+  `combinations`, and `permutations` cover common immutable list/set work.
+- `from kdl` / `to kdl` support KDL v2 data. `to nuon --pretty` is shorthand
+  for readable two-space indentation and aligned table columns.
+- `lines` replaces invalid UTF-8 by default; use `lines --strict` when invalid
+  bytes should fail the pipeline.
+- `url encode` accepts binary input and `url decode --binary` can return binary
+  for non-UTF-8 data.
+- `0.1..0.3` now uses natural fractional steps (`0.1, 0.2, 0.3`) and rounds
+  serialized values to the step precision.
 
 ## Advanced Closure Patterns
 
@@ -324,7 +350,7 @@ $table | where name =~ 'test'          # $it.name =~ 'test'
 ls | where type == file                # Simple and readable
 
 # Limitation: subexpressions need explicit $it
-ls | where ($it.name | str downcase) =~ readme
+ls | where ($it.name | str lowercase) =~ readme
 ```
 
 ### Closures — full flexibility

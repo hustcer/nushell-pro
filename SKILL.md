@@ -1,7 +1,7 @@
 ---
 name: nushell-pro
 description: |
-  Comprehensive Nushell scripting best practices, idioms, security, and code review. Use when writing, reviewing, auditing, or refactoring Nushell (.nu) scripts to ensure they follow idiomatic patterns, naming conventions, proper type annotations, functional style, security best practices, and Nushell's unique design principles. Triggers on tasks involving Nushell scripts, modules, custom commands, pipelines, or any .nu file editing. Also helps convert Bash/POSIX scripts to idiomatic Nushell. Covers the type system, data manipulation, performance optimization, security hardening, script review, and common gotchas.
+  Comprehensive Nushell scripting best practices, idioms, security, and code review. Use when writing, reviewing, auditing, or refactoring Nushell (.nu) scripts to ensure they follow idiomatic patterns, naming conventions, proper type annotations, functional style, security best practices, and Nushell's unique design principles. Triggers on tasks involving Nushell scripts, modules, custom commands, pipelines, Nu 0.114+ migration, or any .nu file editing. Also helps convert Bash/POSIX scripts to idiomatic Nushell. Covers the type system, data manipulation, performance optimization, security hardening, script review, common gotchas, and current Nu 0.114 behavior such as stricter type checking, `run`, POSIX `--`, SemVer, and explicit submodule imports.
 ---
 
 # Nushell Pro — Best Practices & Security Skill
@@ -25,8 +25,9 @@ Use this sequence whenever writing, reviewing, refactoring, or converting Nushel
    - Large datasets, Polars dataframes, columnar analytics, heavy group-by/join -> [Dataframes](references/dataframes.md)
    - Common mistakes and fixes -> [Anti-Patterns](references/anti-patterns.md)
 4. Apply the critical checks in this file first, then use references for details.
-5. Validate parseability with `nu -c 'source path/to/file.nu'` for modules or `nu path/to/script.nu` for scripts when the command is safe to run.
-6. Summarize security findings first, then correctness/style/performance changes.
+5. For version-sensitive behavior, confirm the active Nu version with `nu -c 'version | get version'` and use Nushell MCP evaluation tools if they are exposed in the session.
+6. Validate parseability with `nu -c 'source path/to/file.nu'` for modules or `nu path/to/script.nu` for scripts when the command is safe to run.
+7. Summarize security findings first, then correctness/style/performance changes.
 
 If validation fails -> read the Nushell diagnostic, fix the syntax or type signature, and rerun the smallest safe validation command.
 If a command has side effects -> validate only parseability or use a fixture/temp directory.
@@ -42,9 +43,42 @@ STOP CHECKPOINT: Before approving code that runs external commands, deletes file
 4. **Static parsing** — All code is parsed before execution; `source`/`use` require parse-time constants
 5. **Implicit return** — The last expression's value is the return value; no need for `echo` or `return`
 6. **Scoped environment** — Environment changes are local to their block; use `def --env` when caller-side changes are needed
-7. **Type safety** — Annotate parameter types and input/output signatures for better error detection and documentation
+7. **Type safety** — Annotate parameter types and input/output signatures; Nu 0.114+ checks more at parse time and enforces assignment annotations at runtime by default
 8. **Prefer `match` for branching** — Use `match` instead of long `if`/`else if` chains when dispatching on one value or handling many branches
 9. **Parallel ready** — Immutable code enables easy `par-each` parallelization
+
+## Nu 0.114+ Version Notes
+
+Nu 0.114 tightened type checking and added several commands that should change
+how scripts are written and reviewed:
+
+- `$in`, pipeline `let` bindings, `def` blocks, `if`, and `match` are typed more
+  precisely. Treat new parse-time errors as useful signal; do not work around
+  them with `any` unless the code is genuinely polymorphic.
+- Optional positional parameters and named flags without defaults are
+  `oneof<T, nothing>`. Add a default or handle `null` before assigning to `T`,
+  doing arithmetic, or promising a non-null return type.
+- `if` without `else` and `match` without `_` can output `nothing`. Add an
+  explicit fallback when the surrounding pipeline or signature requires a value.
+- `enforce-runtime-annotations` is enabled by default. Runtime `let` assignment
+  annotations are checked, so stale type annotations now fail earlier.
+- Importing a module no longer implicitly imports its exported submodules.
+  Re-export submodules explicitly with `export use submodule` or
+  `export use submodule *` when callers need the old surface.
+- Builtins, custom commands, and `def --wrapped` understand POSIX-style `--` as
+  an end-of-options delimiter. Use it when dash-prefixed values are positional
+  data; decide deliberately whether wrappers should skip or forward the token.
+- Use `run script.nu` when a script should act as a pipeline stage. It accepts
+  pipeline input, invokes `def main` when present, runs isolated from the parent
+  scope, and supports `run --full-reparse` for watch/repeated execution loops.
+- Use `into semver`, `into semver-range`, and `semver bump` for release/version
+  logic instead of string splitting or lexical sort.
+- Prefer `str uppercase` / `str lowercase`; `str upcase` / `str downcase` are
+  deprecated.
+- `from xlsx` and `from ods` return records of sheet tables. Use `--noheaders`,
+  `--first-row`, and `--prefer-integers` instead of old `--header-row` patterns.
+- In `try/catch`, use `$err.details` for structured diagnostics; `$err.json` is
+  gone. Labels may include file-relative `location` in addition to `span`.
 
 ## Critical: Pipeline Input vs Parameters
 
@@ -240,6 +274,12 @@ $list | reduce --fold 0 {|it, acc| $acc + $it }   # Accumulate
 $list | window 3                                   # Sliding window
 $list | chunks 100                                 # Process in batches
 $list | flatten                                    # Flatten nested lists
+$list | append 4 5 6                               # Append multiple values
+$list | union $other                               # Deduplicated union
+$list | intersect $other                           # Deduplicated intersection
+$list | difference $other                          # Values only in left list
+$list | combinations 2                             # Lazy k-combinations
+$list | permutations                               # Lazy permutations
 ```
 
 ### Null safety
@@ -518,6 +558,15 @@ my-module/
 - Use `export def main` when command name matches module name
 - Use `export use submodule.nu *` to re-export submodule commands
 - Use `export-env` for environment setup blocks
+- In Nu 0.114+, exported submodules are not imported implicitly. If callers
+  need `my-module sub cmd`, re-export `sub` explicitly from `mod.nu`.
+
+```nu
+export module sub {
+    export def cmd [] { 'ok' }
+}
+export use sub          # Keep `my-module sub cmd` available after `use my-module`
+```
 
 ### Script with main command and subcommands
 
@@ -540,6 +589,26 @@ def main [] {
 ```
 
 For stdin access in shebang scripts: `#!/usr/bin/env -S nu --stdin`
+
+### Pipeline scripts with `run`
+
+Use `run` when a `.nu` script is meant to participate in a pipeline rather than
+be invoked as a process with `nu script.nu`. A bare script body acts as a
+pipeline transform; if the script defines top-level `def main`, `run` calls it.
+
+```nu
+# shout.nu
+str uppercase
+
+'Hello Nushell!' | run shout.nu | str camel-case
+```
+
+`run` is a parser keyword: the script file must already exist when the calling
+block is parsed. It resolves scripts from the current directory, `NU_LIB_DIRS`,
+or an explicit path, but not from `PATH`. It runs isolated from the parent scope,
+so definitions and local changes do not leak back. Use
+`run --full-reparse script.nu` in watch loops or repeated test runs when the
+script file is changing.
 
 ## Error Handling
 
@@ -570,6 +639,13 @@ let result = try {
     null
 }
 
+# Nu 0.114+: structured diagnostic details live at $err.details, not $err.json
+let details = try {
+    risky-command
+} catch {|err|
+    $err.details
+}
+
 # Use complete for detailed external command error info
 let result = (^some-external-cmd | complete)
 if $result.exit_code != 0 {
@@ -598,6 +674,16 @@ let result = (do -c { ^some-cmd })
 - `do -c` — Catch errors as values to abort downstream pipeline on failure
 - `try/catch` — When you need to inspect or log the error
 - `complete` — When you need exit code + stdout + stderr from external commands
+
+### Ignore stream output precisely
+
+Nu 0.114 added flags to `ignore` for stream/error control:
+
+- `ignore --stderr` / `-e` consumes stderr while stdout continues
+- `ignore --stdout` / `-o` consumes stdout while stderr continues
+- `ignore --show-errors` / `-x` shows errors and updates `$env.LAST_EXIT_CODE`
+
+Use these when a conversion from Bash redirects only one stream to `/dev/null`.
 
 ## Testing
 
@@ -751,11 +837,16 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] Error handling with `try/catch` for fallible operations
 - [ ] External commands checked with `complete` when error handling matters
 - [ ] Optional fields accessed with `?` operator
+- [ ] Optional params/flags without defaults are treated as `oneof<T, nothing>`
+- [ ] `if`/`match` expressions have fallbacks when a non-null output is required
 - [ ] No `for` as final expression (use `each` instead)
 - [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
 - [ ] `mut` not captured in closures
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
+- [ ] Submodules are explicitly re-exported when callers depend on them
+- [ ] `try/catch` diagnostics use `$err.details`, not removed `$err.json`
+- [ ] Version/release logic uses `semver` values instead of lexical strings
 
 ### 3. Style review
 
@@ -808,6 +899,12 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 | `parse` on stream expecting old line splitting       | Insert `lines` before `parse` for line-by-line parsing                           |
 | Custom command flags on new lines                    | Keep one line or wrap the invocation in `(...)`                                  |
 | Single-quoted or double-escaped external format `\t` | Use `"%H\t%an"` or `(char tab)` / `(char nl)`                                    |
+| `use foo` expecting `foo sub cmd` automatically       | Re-export submodules explicitly with `export use sub` in Nu 0.114+               |
+| Optional arg used as plain `int`/`string`             | Add a default or handle `null` before use                                        |
+| `catch {|err| $err.json \| from json }`               | Use `$err.details` directly                                                     |
+| `str upcase` / `str downcase`                         | Use `str uppercase` / `str lowercase`                                           |
+| SemVer sorted or bumped as plain strings              | Use `into semver`, `into semver-range`, and `semver bump`                        |
+| `from xlsx --header-row ...`                          | Use `--noheaders`, `--first-row`, and `--prefer-integers` as needed              |
 
 ## Best Practices Summary
 
@@ -823,6 +920,7 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 10. **Use external tools when faster** — `^rg` for large file search, `^jq` for giant JSON
 11. **Group multiline command calls** — Keep named-flag invocations one-line or wrap them in `(...)`
 12. **Use clear separators in external formats** — Prefer double-quoted escapes when no interpolation is needed; use `(char tab)` / `(char nl)` when interpolation or explicit separators are needed
+13. **Use Nu 0.114 builtins for common domains** — `run` for pipeline scripts, SemVer commands for versions, set-operation commands for lists
 
 ## Do Not Do These Things
 
@@ -834,6 +932,8 @@ Refer to [Anti-Patterns Reference](references/anti-patterns.md) for detailed exp
 - Do not use `echo` to print user-facing messages — `echo` has no print side effect; its returned value is shown only when it becomes final output. Use `print` for side-effect output (`echo 'msg'; exit 1` prints nothing).
 - Do not split named flags for a custom command onto new statement lines; keep one line or wrap the invocation in parentheses.
 - Do not convert user input into `nu -c`, `source`, `^sh -c`, `^bash -c`, or `^cmd.exe /C` strings.
+- Do not execute user-controlled `.nu` paths with `run` or `source` unless the path and trust boundary are explicit.
+- Do not depend on implicit submodule imports in Nu 0.114+; re-export the intended submodule surface.
 - Do not parse structured Nushell output as plain strings when a record/table/list operation exists.
 - Do not run destructive examples during validation; parse-check them or use a temp fixture.
 
@@ -845,14 +945,15 @@ When writing or reviewing Nushell code:
 2. **Security audit** — Check for injection, path traversal, credential leaks (see [Security](references/security.md))
 3. **Check naming** — kebab-case commands, snake_case variables
 4. **Check types** — Add/verify type annotations and I/O signatures
-5. **Check strings** — Follow the string format priority
-6. **Check branching** — Prefer `match` over long `if`/`else if` chains on one value
-7. **Check patterns** — Prefer functional pipelines over imperative loops
-8. **Check formatting** — Spacing, line length, multi-line rules
-9. **Check documentation** — Comments for exported commands, parameter descriptions
-10. **Check error handling** — try/catch, complete for externals, validate inputs
-11. **Run validation** if possible — `nu -c 'source file.nu'` or `nu file.nu`
-12. **Summarize changes** made with security findings highlighted
+5. **Check Nu 0.114 semantics** — Optional `nothing`, typed `$in`, explicit submodule imports, `$err.details`, deprecated commands
+6. **Check strings** — Follow the string format priority
+7. **Check branching** — Prefer `match` over long `if`/`else if` chains on one value
+8. **Check patterns** — Prefer functional pipelines over imperative loops
+9. **Check formatting** — Spacing, line length, multi-line rules
+10. **Check documentation** — Comments for exported commands, parameter descriptions
+11. **Check error handling** — try/catch, complete for externals, validate inputs
+12. **Run validation** if possible — `nu -c 'source file.nu'` or `nu file.nu`
+13. **Summarize changes** made with security findings highlighted
 
 ## References
 
@@ -869,5 +970,5 @@ When writing or reviewing Nushell code:
 ## Getting Help
 
 - Use `nu -c 'help <command>'` to check command signatures and examples
-- Use Nushell MCP tools for evaluating and testing Nushell code
+- Use Nushell MCP tools for evaluating and testing Nushell code when they are exposed; otherwise use local `nu -c` probes
 - Consult the [Nushell Book](https://www.nushell.sh/book/) for in-depth documentation

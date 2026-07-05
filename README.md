@@ -9,8 +9,9 @@ Write idiomatic, performant, secure, and maintainable [Nushell](https://www.nush
 - **Best Practices** — Naming conventions, type annotations, I/O signatures, functional pipeline style, string format priority, and formatting rules
 - **Security Hardening** — Injection prevention, path traversal protection, credential scoping, safe file/temp operations, environment sanitization
 - **Code Review** — Comprehensive checklist covering security, correctness, style, performance, and robustness
-- **Anti-Pattern Detection** — 27 common mistakes with idiomatic fixes
+- **Anti-Pattern Detection** — 33 common mistakes with idiomatic fixes
 - **Type System** — Type hierarchy, complex types, type guards, null safety patterns
+- **Nu 0.114 Support** — Stricter type checking, explicit submodule imports, `run`, POSIX `--`, SemVer, spreadsheet import changes, and updated diagnostics
 - **Bash Conversion** — Side-by-side Bash-to-Nushell translation guide
 - **Performance** — Parallel processing with `par-each`, streaming patterns, memory-efficient techniques
 - **Data Processing** — Polars dataframes (lazy/eager), group-by, joins, window/sequence ops, nested list/struct data, reshaping, binning, time zones, SQL, column selectors, and large-data / columnar analytics
@@ -38,7 +39,7 @@ nushell-pro/
 └── references/
     ├── security.md                      # Threat model, safe patterns, Windows risks
     ├── script-review.md                 # Full review checklist (5 categories)
-    ├── anti-patterns.md                 # 27 anti-patterns with fixes
+    ├── anti-patterns.md                 # 33 anti-patterns with fixes
     ├── data-and-types.md                # Type system, collections, conversions
     ├── dataframes.md                    # Polars dataframes: lazy/eager, group-by, joins, large data
     ├── advanced-patterns.md             # Streaming, closures, parallel, debugging

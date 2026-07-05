@@ -21,6 +21,7 @@ any
 ├── table<T> (list<record<T>>)
 ├── closure
 ├── cell-path
+├── custom (semver, semver-range, plugin values)
 └── error
 ```
 
@@ -48,9 +49,24 @@ def func [
     x: int
     y: int = 10             # Default value
     --flag                  # Named flag (boolean switch)
-    --option: string        # Named param (null if not passed)
+    --option: string        # Named param (oneof<string, nothing> if not passed)
     --foo: string = 'bar'   # Named param with default value
 ] { ... }
+```
+
+Nu 0.114+ models optional parameters and named parameters without defaults as
+unions with `nothing`:
+
+```nu
+def maybe-add [x?: int] {
+    # $x is oneof<int, nothing>
+    ($x | default 0) + 1
+}
+
+def with-default [x?: int = 0] {
+    # $x is int
+    $x + 1
+}
 ```
 
 ### Complex types
@@ -61,6 +77,7 @@ def func [matrix: list<list<int>>] { ... }
 def func [config: record<host: string, port: int>] { ... }
 def func [data: table] { ... }
 def func [transform: closure] { ... }
+def func [value: oneof<int, string, nothing>] { ... }
 ```
 
 ### Type annotations for custom commands
@@ -190,6 +207,47 @@ seq char a e          # Character sequence: [a, b, c, d, e]
 1024 | into filesize           # 1.0 KiB
 60 | into duration --unit sec  # 1min
 '*.rs' | into glob             # glob type
+'1.2.3-alpha.1' | into semver  # semver custom value
+'>=1.0.0' | into semver-range  # semver range custom value
+```
+
+## Nu 0.114 Type Checking
+
+Nu 0.114 preserves more type information at parse time. This is useful because
+bad scripts fail before doing work, but old annotations may need cleanup.
+
+```nu
+# $in is typed from the surrounding pipeline, so this is a parse-time mismatch
+2 | $in + 'foo'
+
+# Pipeline let bindings preserve input type
+42 | let x
+scope variables | where name == '$x' | get type.0  # int
+
+# def bodies are checked against declared pipeline signatures
+def accepts-int []: int -> int { $in }
+def bad []: string -> int { accepts-int }          # string input rejected
+```
+
+Conditionals now produce union output types. Without an `else` or `_` fallback,
+the output includes `nothing`:
+
+```nu
+if $ok { 42 }                 # oneof<int, nothing>
+if $ok { 42 } else { 0 }      # int
+
+match $state {
+    ready => 1
+    failed => 'error'
+    _ => 0
+}                             # oneof<int, string>
+```
+
+`enforce-runtime-annotations` is enabled by default in Nu 0.114, so runtime
+assignment annotations are checked too:
+
+```nu
+let value: int = (if $ok { 42 } else { null })  # errors when branch returns null
 ```
 
 ## Type Checking and Guards
@@ -203,7 +261,7 @@ seq char a e          # Character sequence: [a, b, c, d, e]
 def safe-process [value: any] {
     match ($value | describe) {
         'int' => ($value * 2)
-        'string' => ($value | str upcase)
+        'string' => ($value | str uppercase)
         _ => null
     }
 }
@@ -272,6 +330,24 @@ $sales | group-by category --to-table | insert stats {|g| {
 }}
 ```
 
+### Spreadsheet imports
+
+`from xlsx` and `from ods` return a **record of sheet-name -> table**, not a
+single table. In Nu 0.114, use the new header controls:
+
+```nu
+open workbook.xlsx                       # record of sheet tables
+open workbook.xlsx | get Sheet1          # one sheet table
+
+open workbook.xlsx --raw | from xlsx --noheaders
+open workbook.xlsx --raw | from xlsx --first-row 0
+open workbook.xlsx --raw | from xlsx --prefer-integers
+```
+
+Use `--noheaders` when the first non-empty row is data, `--first-row 0` when
+leading empty rows must be preserved or a specific row should start import, and
+`--prefer-integers` when whole-number floats should become `int`.
+
 ## List Operations
 
 ```nu
@@ -284,8 +360,21 @@ $list | flatten                                  # Flatten nested lists
 $list | skip while {|x| $x < 100 }              # Skip while condition true
 $list | take while {|x| $x < 1000 }             # Take while condition true
 $list | uniq                                     # Remove duplicates
+$list | union $other                             # Deduplicated union
+$list | intersect $other                         # Deduplicated intersection
+$list | difference $other                        # Values only in left list
+$list | combinations 2                           # Lazy k-combinations
+$list | permutations                             # Lazy permutations
 $list | sort-by field                            # Sort
 $list | reverse                                  # Reverse order
+```
+
+For SemVer lists, convert before sorting or comparing:
+
+```nu
+['1.10.0' '1.2.0'] | each { into semver } | sort
+'1.2.3' | into semver | semver bump minor       # 1.3.0
+'1.2.3' | into semver | $in in ('>=1.0.0' | into semver-range)
 ```
 
 ## Null Safety Patterns
