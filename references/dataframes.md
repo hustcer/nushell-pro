@@ -490,8 +490,8 @@ $df | polars drop-duplicates                   # drop fully-duplicate rows
 # `old` is a list/record of values to match; `new` is the list of replacements.
 $df | polars with-column (polars col grade | polars replace [A B] [4 3] | polars as gpa)
 # Flags: --strict (every value must match), --default <expr> (value for unmatched).
-# Nu 0.114 / Polars 0.54: when `--strict` and `--return-dtype` change the dtype,
-# pass `--default <value>` explicitly.
+# Nu 0.114 / Polars 0.54: with `--strict` and `--return-dtype`, pass
+# `--default <value>` when any input values may be unmapped.
 
 # polars set / set-with-idx / filter-with: mask- or index-based value assignment (eager series)
 ```

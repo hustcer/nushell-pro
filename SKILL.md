@@ -55,9 +55,10 @@ how scripts are written and reviewed:
 - `$in`, pipeline `let` bindings, `def` blocks, `if`, and `match` are typed more
   precisely. Treat new parse-time errors as useful signal; do not work around
   them with `any` unless the code is genuinely polymorphic.
-- Optional positional parameters and named flags without defaults are
-  `oneof<T, nothing>`. Add a default or handle `null` before assigning to `T`,
-  doing arithmetic, or promising a non-null return type.
+- Optional positional parameters and typed named options without defaults (for
+  example `--option: string`) are `oneof<T, nothing>`. Boolean switch flags
+  such as `--flag` remain `bool`. Add a default or handle `null` before
+  assigning to `T`, doing arithmetic, or promising a non-null return type.
 - `if` without `else` and `match` without `_` can output `nothing`. Add an
   explicit fallback when the surrounding pipeline or signature requires a value.
 - `enforce-runtime-annotations` is enabled by default. Runtime `let` assignment
@@ -837,7 +838,7 @@ When reviewing a Nushell script, check these categories in order:
 - [ ] Error handling with `try/catch` for fallible operations
 - [ ] External commands checked with `complete` when error handling matters
 - [ ] Optional fields accessed with `?` operator
-- [ ] Optional params/flags without defaults are treated as `oneof<T, nothing>`
+- [ ] Optional params and typed named options without defaults are treated as `oneof<T, nothing>`; boolean switch flags remain `bool`
 - [ ] `if`/`match` expressions have fallbacks when a non-null output is required
 - [ ] No `for` as final expression (use `each` instead)
 - [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer

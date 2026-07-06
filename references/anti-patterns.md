@@ -508,9 +508,10 @@ namespace is the public API you want.
 
 ## 30. Treating Optional Parameters as Non-Null
 
-Optional parameters and named flags without defaults are `oneof<T, nothing>` in
-Nu 0.114+. Handle `null` before arithmetic, string operations, or assignment to
-a non-null annotated variable.
+Optional positional parameters and typed named options without defaults are
+`oneof<T, nothing>` in Nu 0.114+. Boolean switch flags such as `--flag` remain
+`bool` and default to `false`. Handle `null` before arithmetic, string
+operations, or assignment to a non-null annotated variable.
 
 ```nu
 # Bad — $count can be null

@@ -10,7 +10,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 - [ ] No `nu -c $variable` with untrusted input
 - [ ] No `source $variable` with runtime paths (must be `const`)
-- [ ] No `run $variable` with user-controlled `.nu` script paths
+- [ ] No `run` of untrusted `.nu` script paths; `run` targets must be parse-time constants
 - [ ] No `^sh -c`, `^bash -c`, or `^cmd.exe /C` with interpolated user input
 - [ ] No `run-external` with user-controlled command names
 
@@ -56,7 +56,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 - [ ] I/O pipeline signatures (`]: type -> type {`) match actual behavior
 - [ ] Complex types use proper syntax: `record<name: string>`, `list<int>`, `table<col: type>`
 - [ ] Optional parameters use `?` suffix: `name?: string`
-- [ ] Optional params/flags without defaults are handled as `oneof<T, nothing>`
+- [ ] Optional params and typed named options without defaults are handled as `oneof<T, nothing>`; boolean switch flags remain `bool`
 - [ ] Rest parameters typed: `...args: string`
 - [ ] Runtime assignment annotations are valid under Nu 0.114's default `enforce-runtime-annotations`
 
