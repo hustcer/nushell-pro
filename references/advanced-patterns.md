@@ -1,5 +1,13 @@
 # Advanced Nushell Patterns Reference
 
+## Contents
+
+- Performance and memory-efficient patterns
+- Nu 0.113/0.114 command behavior
+- Closures, streams, and iteration pitfalls
+- Error handling and stable diagnostics
+- Globs, custom data, row conditions, and debugging
+
 ## Performance Optimization
 
 ### Lazy vs eager evaluation
@@ -274,6 +282,32 @@ if $result.exit_code != 0 {
     print 'Build succeeded'
 }
 ```
+
+### Terminal-width-independent diagnostic assertions
+
+Nested Nushell failures captured through `complete` are formatted for humans.
+ANSI styling, diagnostic `|` gutters, and PTY-width hard wrapping make raw
+`stderr` unsuitable for exact or contiguous substring assertions. Prefer
+structured `$err.details` for in-process tests. For a CLI boundary, normalize
+both the captured diagnostic and expected phrase before comparing:
+
+```nu
+def compact-diagnostic [value: any]: nothing -> string {
+    $value
+    | into string
+    | ansi strip
+    | str replace --all --regex r#'[\s|]+'# ''
+}
+
+(
+    assert str contains
+        (compact-diagnostic $result.stderr)
+        (compact-diagnostic 'License JSON exceeds 65536 UTF-8 bytes')
+)
+```
+
+Use a long, domain-specific expected phrase. Verify terminal-sensitive
+regressions with a narrow PTY as well as the normal test command.
 
 ### Suppress errors with `do -i` / `do -c`
 

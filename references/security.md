@@ -1,5 +1,12 @@
 # Nushell Security Reference
 
+## Contents
+
+- Nushell's security model and threat model
+- Safe commands, paths, credentials, temp files, removal, globs, and environments
+- Windows-specific risks
+- Security review checklist
+
 ## Nushell's Security Model
 
 ### Built-in safety advantages over Bash
@@ -46,13 +53,13 @@ Despite these advantages, Nushell scripts can still be vulnerable to:
 
 ### Medium risk
 
-| Threat           | Vector                          | Mitigation                           |
-| ---------------- | ------------------------------- | ------------------------------------ |
-| TOCTOU           | Check then use file             | Use atomic operations where possible |
-| Temp file race   | Predictable `/tmp/myfile`       | Use `^mktemp` for unique temp files  |
-| Unhandled errors | External command silently fails | Use `complete` and check `exit_code` |
-| Glob DoS         | `glob **/*` on huge trees       | Use `--depth` limits                 |
-| Config tampering | Modified `config.nu`            | Protect config file permissions      |
+| Threat           | Vector                          | Mitigation                                  |
+| ---------------- | ------------------------------- | ------------------------------------------- |
+| TOCTOU           | Check then use file             | Use atomic operations where possible        |
+| Temp file race   | Predictable `/tmp/myfile`       | Use built-in `mktemp` for unique temp files |
+| Unhandled errors | External command silently fails | Use `complete` and check `exit_code`        |
+| Glob DoS         | `glob **/*` on huge trees       | Use `--depth` limits                        |
+| Config tampering | Modified `config.nu`            | Protect config file permissions             |
 
 ---
 
@@ -116,11 +123,13 @@ if ($cmd =~ r#'[\r\n]'#) { return false }   # inside a validator: no embedded ne
 ```nu
 # Validate user paths against a base directory
 def safe-open [name: string, --base-dir: path = '.'] {
-    let base = ($base_dir | path expand)
-    let full = ($base_dir | path join $name | path expand)
+    let base = ($base_dir | path expand --strict)
+    let full = ($base | path join $name | path expand --strict)
 
-    # Prevent path traversal
-    if not ($full | str starts-with $base) {
+    # Prove containment by path components, not a string prefix.
+    try {
+        $full | path relative-to $base | ignore
+    } catch {
         error make {
             msg: 'Path traversal detected'
             label: {
@@ -190,8 +199,8 @@ let tmp = '/tmp/my-script-output'
 'data' | save $tmp
 # Another process could create/symlink this path first!
 
-# Good — unique temp file via mktemp
-let tmp = (^mktemp | str trim)
+# Good — Nu 0.114 built-in, portable, and already returns a path string
+let tmp = mktemp --suffix .tmp
 try {
     'data' | save $tmp
     # ... process the file ...
@@ -202,7 +211,7 @@ try {
 rm -f $tmp
 
 # Good — unique temp directory
-let tmpdir = (^mktemp -d | str trim)
+let tmpdir = mktemp --directory
 ```
 
 ### 6. Safe rm and destructive operations

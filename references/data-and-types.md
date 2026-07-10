@@ -1,5 +1,12 @@
 # Nushell Data & Type System Reference
 
+## Contents
+
+- Type hierarchy, annotations, scalars, and collections
+- Conversions and Nu 0.114 type checking
+- Guards, coercion, records, tables, and lists
+- Null safety, discriminated unions, and Polars boundaries
+
 ## Type Hierarchy
 
 ```

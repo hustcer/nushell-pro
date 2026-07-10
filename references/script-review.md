@@ -16,7 +16,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 ### Path safety
 
-- [ ] User-provided paths validated with `path expand` + prefix check
+- [ ] Existing user-provided paths validated with strict expansion + `path relative-to`; no string-prefix containment checks
 - [ ] No raw `open $user_input` without path traversal guard
 - [ ] `..` sequences in user paths detected and rejected
 - [ ] Base directory enforcement for file operations
@@ -30,15 +30,15 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 ### Destructive operations
 
-- [ ] `rm` operations validate target path (not `/`, not `$nu.home-path`)
+- [ ] `rm` operations validate target path (not `/`, not `$nu.home-dir`)
 - [ ] Glob patterns from user input are validated (no unintended expansion)
 - [ ] `--depth` limits on `glob` to prevent DoS on large trees
 
 ### Temp files
 
-- [ ] Temp files created with `^mktemp`, not predictable paths
+- [ ] Temp files created with built-in `mktemp`, not predictable paths
 - [ ] Temp files cleaned up in `try/catch` or equivalent
-- [ ] Temp directories use `^mktemp -d`
+- [ ] Temp directories use `mktemp --directory`
 
 ### Environment safety
 
@@ -64,6 +64,7 @@ Comprehensive checklist for reviewing Nushell scripts. Check items in order of p
 
 - [ ] Fallible operations wrapped in `try/catch`
 - [ ] External commands checked with `complete` when exit code matters
+- [ ] Tests do not assert raw nested-Nu diagnostics without normalizing ANSI, PTY wrapping, and `|` gutters
 - [ ] `catch` blocks include meaningful error context (not empty)
 - [ ] `finally` used for cleanup side effects, not as the returned value
 - [ ] `catch` blocks read `$err.details` for structured diagnostics, not removed `$err.json`

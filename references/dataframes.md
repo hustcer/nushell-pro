@@ -13,14 +13,23 @@ faster and more memory-efficient than native loops for this class of work.
 > `help polars <cmd>` rather than trusting older docs. The plugin currently
 > ships ~150 `polars *` subcommands — `help polars` lists them all.
 
+## Contents
+
+- Choosing Polars, setup, lazy/eager execution, and object storage
+- Loading, inspecting, expressions, selectors, and column operations
+- Aggregation, windows, joins, concatenation, and reshaping
+- Nested data, binning, math, strings, dates, and null handling
+- Sampling, replacement, custom batches, SQL, casting, and saving
+- Migration and performance notes
+
 ## When to Use Dataframes
 
-| Use native `table`/`list` when… | Use Polars dataframes when… |
-| --- | --- |
-| Data is small (≲ 100k rows) | Data is large (100k–billions of rows) |
-| You need random access or row-by-row logic | You do columnar ops: group-by, join, aggregate, window |
-| You compose with the broader Nushell command set | You read/write big CSV/Parquet/Arrow/JSON files |
-| You stream line-by-line (logs) | You want a query optimizer to plan the whole pipeline |
+| Use native `table`/`list` when…                  | Use Polars dataframes when…                            |
+| ------------------------------------------------ | ------------------------------------------------------ |
+| Data is small (≲ 100k rows)                      | Data is large (100k–billions of rows)                  |
+| You need random access or row-by-row logic       | You do columnar ops: group-by, join, aggregate, window |
+| You compose with the broader Nushell command set | You read/write big CSV/Parquet/Arrow/JSON files        |
+| You stream line-by-line (logs)                   | You want a query optimizer to plan the whole pipeline  |
 
 **Eager vs lazy:**
 
@@ -77,7 +86,7 @@ polars open data.csv | polars filter ((polars col ok) == true) | polars cache
 ## The Object Store
 
 Dataframes live in the plugin's object store, not as plain Nushell values. A
-Nushell variable holds a *reference*; the store **persists across commands** for
+Nushell variable holds a _reference_; the store **persists across commands** for
 the plugin's lifetime.
 
 ```nu
@@ -91,7 +100,7 @@ plugin stop polars                                             # Drop everything
 expression, group-by, schema, selector…) — useful for reconnecting to a frame
 by key, e.g. across `do`/closure boundaries.
 
-> **Gotcha:** A lazy frame from `polars open` references the *source file*. If
+> **Gotcha:** A lazy frame from `polars open` references the _source file_. If
 > you delete or move that file before `collect` (or before `polars store-ls`,
 > which inspects every stored frame), execution fails with
 > `Error collecting lazy frame: No such file or directory`. Collect to an eager
@@ -326,8 +335,8 @@ $a | polars append $a          # DEFAULT: adds the other frame as NEW COLUMNS ->
 $a | polars append $a --col    # --col: stacks ROWS -> 4 rows of (a b)
 ```
 
-> **Gotcha:** `polars append`'s default appends *columns* (with `_x` suffixes on
-> name clashes); `--col` appends *rows*. This is the opposite of what the flag
+> **Gotcha:** `polars append`'s default appends _columns_ (with `_x` suffixes on
+> name clashes); `--col` appends _rows_. This is the opposite of what the flag
 > name suggests. For row stacking, **prefer `polars concat`** — it reads clearly.
 
 ## Reshaping: Unpivot and Pivot
@@ -560,16 +569,16 @@ Flags include `--type` (force format), `--csv-delimiter`, `--csv-no-header`, and
 
 ## Migration Notes (older docs → 0.113/0.114)
 
-| Old | Now |
-| --- | --- |
-| `polars melt` | `polars unpivot` (and `polars pivot` for the reverse) |
-| `polars join --outer` | `polars join --full` |
-| old substring replacement examples using `replace` / `replace-all` | `polars str-replace` / `polars str-replace-all` (`polars replace` is value mapping) |
-| `polars concatenate` | `polars str-join` / `polars concat-str` (string concat), or `polars concat` (stack frames) |
-| `polars fetch` | removed (use `polars collect` / `polars first`) |
-| `describe` → `DataFrame` | `describe` → `polars_dataframe` / `polars_lazyframe` |
-| `polars open` (eager) | `polars open` is **lazy**; use `--eager` for eager |
-| `polars count` for row count | `polars len` (`polars count` = non-null count, SQL `COUNT(col)`) |
+| Old                                                                | Now                                                                                        |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `polars melt`                                                      | `polars unpivot` (and `polars pivot` for the reverse)                                      |
+| `polars join --outer`                                              | `polars join --full`                                                                       |
+| old substring replacement examples using `replace` / `replace-all` | `polars str-replace` / `polars str-replace-all` (`polars replace` is value mapping)        |
+| `polars concatenate`                                               | `polars str-join` / `polars concat-str` (string concat), or `polars concat` (stack frames) |
+| `polars fetch`                                                     | removed (use `polars collect` / `polars first`)                                            |
+| `describe` → `DataFrame`                                           | `describe` → `polars_dataframe` / `polars_lazyframe`                                       |
+| `polars open` (eager)                                              | `polars open` is **lazy**; use `--eager` for eager                                         |
+| `polars count` for row count                                       | `polars len` (`polars count` = non-null count, SQL `COUNT(col)`)                           |
 
 New since older docs: `polars over` (window), `polars shift`/`cumulative`/
 `rolling` (sequence ops), `polars selector *` (column-select DSL),

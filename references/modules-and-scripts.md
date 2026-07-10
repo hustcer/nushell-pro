@@ -1,5 +1,12 @@
 # Nushell Modules & Scripts Reference
 
+## Contents
+
+- Module organization, exports, `main`, and submodules
+- Environment setup, inline modules, and imports
+- Scripts, `run`, named flags, shebangs, and attributes
+- Parse-time/runtime behavior and testing
+
 ## Module Organization
 
 ### File-form (simple modules)
@@ -255,7 +262,7 @@ For stdin access: `#!/usr/bin/env -S nu --stdin`
 | `const` values         | Yes             | No (already resolved) |
 | `let` values           | No              | Yes                   |
 | `source` / `use` paths | Must be known   | N/A                   |
-| `run` script paths     | File must exist  | Runs isolated         |
+| `run` script paths     | File must exist | Runs isolated         |
 | Type checking          | Yes             | Some                  |
 | `def` names            | Must be literal | N/A                   |
 | Syntax errors          | Caught here     | N/A                   |
@@ -324,6 +331,37 @@ def "assert positive" [n: int] {
     }
 }
 ```
+
+### Stable assertions for nested Nushell diagnostics
+
+Rendered diagnostics from `nu script.nu | complete` are presentation text, not
+a stable protocol. They include ANSI sequences and `|` gutters, and they hard-wrap
+according to PTY width, sometimes inside words. Direct substring checks can pass
+in CI but fail in a narrower interactive terminal.
+
+Prefer direct `try/catch` and `$err.details` for in-process tests. When a CLI
+integration test must inspect rendered `stderr`, normalize both values:
+
+```nu
+def diagnostic-text [value: any]: nothing -> string {
+    $value
+    | into string
+    | ansi strip
+    | str replace --all --regex r#'[\s|]+'# ''
+}
+
+def "assert diagnostic contains" [value: any, expected: string] {
+    assert str contains (diagnostic-text $value) (diagnostic-text $expected)
+}
+
+let result = (^nu failing-script.nu | complete)
+assert not equal $result.exit_code 0
+assert diagnostic contains $result.stderr 'OpenSSL key generation failed'
+```
+
+Use a long, domain-specific phrase to keep the normalized assertion selective.
+For a regression involving diagnostics or tables, also run the test under a
+narrow PTY such as `stty cols 24 && nu tests/example.nu`.
 
 ### Basic test framework (without Nupm)
 

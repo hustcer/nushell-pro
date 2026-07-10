@@ -2,6 +2,13 @@
 
 Quick reference for converting common Bash patterns to idiomatic Nushell.
 
+## Contents
+
+- Redirections, variables, strings, and conditionals
+- Loops, files, command substitution, and functions
+- Lists, records, processes, and JSON
+- Error handling and common migration patterns
+
 ## Redirections & Pipes
 
 | Bash                          | Nushell                                | Notes                    |

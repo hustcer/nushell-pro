@@ -2,6 +2,13 @@
 
 Common mistakes and their idiomatic fixes when writing Nushell scripts.
 
+## Contents
+
+- 1–10: Return values, loops, mutation, imports, redirection, types, closures, environment, and strings
+- 11–20: Parallelism, documentation, defaults, structured data, branching, modules, pipeline input, records, and null safety
+- 21–27: External commands, errors, collections, large data, parsing, multiline flags, and format strings
+- 28–34: Nu 0.114 migrations, SemVer, error records, spreadsheets, and stable diagnostic assertions
+
 ## 1. Using `echo` Instead of Implicit Return
 
 Nushell implicitly returns the last expression's value. `echo` is almost never needed.
@@ -28,7 +35,7 @@ def process [] {
 ```
 
 **Bash-migration trap — `echo` is not `print`.** Unlike Bash's `echo`,
-Nushell's `echo` only *produces a pipeline value*; it does not print as a side
+Nushell's `echo` only _produces a pipeline value_; it does not print as a side
 effect. That value is rendered only when it becomes final output. Used as a
 non-final statement, the value is silently discarded — so `echo 'msg'` meant as a
 "print this" statement displays **nothing**:
@@ -218,7 +225,7 @@ let name = if $input == null { 'anonymous' } else { $input }
 let name = $input | default 'anonymous'
 ```
 
-**Gotcha — the default *argument* is evaluated eagerly**, even when the input is
+**Gotcha — the default _argument_ is evaluated eagerly**, even when the input is
 non-null, because it is an ordinary argument (not a closure). A "fallback" that
 can itself error or is expensive runs regardless:
 
@@ -576,3 +583,33 @@ open report.xlsx --raw | from xlsx --noheaders
 open report.xlsx --raw | from xlsx --first-row 0
 open report.xlsx --raw | from xlsx --prefer-integers
 ```
+
+## 34. Asserting Raw Rendered Nushell Diagnostics
+
+Diagnostics captured from a nested `nu` process are formatted according to the
+caller's terminal width. Nu may insert `|` gutters and line breaks inside a
+message, so a direct `assert str contains $result.stderr 'expected message'`
+can fail only in narrower terminals.
+
+```nu
+# Bad — depends on PTY width and ANSI rendering
+assert str contains $result.stderr 'OpenSSL key generation failed'
+
+# Good — normalize actual and expected presentation text
+def diagnostic-text [value: any]: nothing -> string {
+    $value
+    | into string
+    | ansi strip
+    | str replace --all --regex r#'[\s|]+'# ''
+}
+
+(
+    assert str contains
+        (diagnostic-text $result.stderr)
+        (diagnostic-text 'OpenSSL key generation failed')
+)
+```
+
+Prefer direct `try/catch` and `$err.details` when the test does not need a real
+subprocess boundary. When it does, use a long, specific phrase and verify once
+under a narrow PTY.

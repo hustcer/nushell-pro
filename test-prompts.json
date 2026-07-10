@@ -38,5 +38,15 @@
     "id": 8,
     "prompt": "Modernize a release script that sorts versions as strings, splits them on `.`, uses `str upcase`, and defines `def bump [part?: string] { ... }` without handling null.",
     "expected": "Use `into semver`, `into semver-range`, and `semver bump` for version logic; replace `str upcase` with `str uppercase`; handle the optional `part` as `oneof<string, nothing>` with a default or explicit branch."
+  },
+  {
+    "id": 9,
+    "prompt": "Debug a Nu 0.114 test that runs `^nu failing-script.nu | complete` and asserts `assert str contains $result.stderr 'OpenSSL key generation failed'`. It passes in CI but fails in my narrow terminal with `$left does not have the correct length`.",
+    "expected": "Explain that nested Nushell diagnostics are PTY-width-dependent presentation text. Prefer structured in-process errors when possible; otherwise strip ANSI and normalize whitespace plus diagnostic `|` gutters on both actual and expected text, then verify under a narrow PTY."
+  },
+  {
+    "id": 10,
+    "prompt": "Security review this Nushell helper: it expands `/srv/app` and a user path, then accepts the path when `$full | str starts-with $base`; it also creates temp files with `^mktemp`.",
+    "expected": "Flag the string-prefix containment bypass such as `/srv/app2`; use strict expansion plus `path relative-to` for existing paths. Prefer Nu 0.114's built-in `mktemp`/`mktemp --directory` for portable temp creation."
   }
 ]
