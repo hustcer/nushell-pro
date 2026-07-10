@@ -21,13 +21,13 @@ in this file; load detailed references only when the task needs them.
    version | get version
    ```
 
-4. Load the smallest relevant reference:
+4. Load the smallest relevant reference set:
 
    | Task                                                 | Reference                                              |
    | ---------------------------------------------------- | ------------------------------------------------------ |
    | String quoting, interpolation, regex, globs          | [String Formats](references/string-formats.md)         |
    | Security, paths, credentials, destructive operations | [Security](references/security.md)                     |
-   | Script/code review                                   | [Script Review](references/script-review.md)           |
+   | Script/code review                                   | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
    | Bash/POSIX conversion                                | [Bash to Nushell](references/bash-to-nushell.md)       |
    | Modules, exports, scripts, tests                     | [Modules & Scripts](references/modules-and-scripts.md) |
    | Types, records, lists, conversions                   | [Data & Type System](references/data-and-types.md)     |

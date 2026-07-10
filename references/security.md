@@ -124,7 +124,17 @@ if ($cmd =~ r#'[\r\n]'#) { return false }   # inside a validator: no embedded ne
 # Validate user paths against a base directory
 def safe-open [name: string, --base-dir: path = '.'] {
     let base = ($base_dir | path expand --strict)
-    let full = ($base | path join $name | path expand --strict)
+    let candidate = ($base | path join $name)
+
+    # Check before strict expansion so this branch can provide a custom span.
+    if not ($candidate | path exists) {
+        error make {
+            msg: $'File not found: ($candidate)'
+            label: {text: 'this file', span: (metadata $name).span}
+        }
+    }
+
+    let full = ($candidate | path expand --strict)
 
     # Prove containment by path components, not a string prefix.
     try {
@@ -136,14 +146,6 @@ def safe-open [name: string, --base-dir: path = '.'] {
                 text: $'Path ($name) escapes base directory ($base)'
                 span: (metadata $name).span
             }
-        }
-    }
-
-    # Verify file exists
-    if not ($full | path exists) {
-        error make {
-            msg: $'File not found: ($full)'
-            label: {text: 'this file', span: (metadata $name).span}
         }
     }
 
