@@ -41,7 +41,7 @@ Quick reference for converting common Bash patterns to idiomatic Nushell.
 | ----------------- | ----------------------------------- |
 | `${var^^}`        | `$var \| str uppercase`             |
 | `${var,,}`        | `$var \| str lowercase`             |
-| `${var:0:5}`      | `$var \| str substring 0..5`        |
+| `${var:0:5}`      | `$var \| str substring 0..<5`       |
 | `${#var}`         | `$var \| str length`                |
 | `${var/old/new}`  | `$var \| str replace old new`       |
 | `${var//old/new}` | `$var \| str replace --all old new` |
@@ -145,20 +145,24 @@ open file.txt | lines | each {|line| $line }
 
 ## File Operations
 
-| Bash                  | Nushell                          |
-| --------------------- | -------------------------------- |
-| `cat file`            | `open file` or `open --raw file` |
-| `wc -l file`          | `open file \| lines \| length`   |
-| `touch file`          | `touch file`                     |
-| `mkdir -p dir`        | `mkdir dir`                      |
-| `rm -rf dir`          | `rm -r dir`                      |
-| `cp src dst`          | `cp src dst`                     |
-| `mv src dst`          | `mv src dst`                     |
-| `find . -name "*.rs"` | `glob **/*.rs`                   |
-| `test -f file`        | `('file' \| path exists)`        |
-| `test -d dir`         | `('dir' \| path type) == dir`    |
-| `basename path`       | `'path' \| path basename`        |
-| `dirname path`        | `'path' \| path dirname`         |
+| Bash                  | Nushell                                                                         |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `cat file`            | `open --raw file`                                                               |
+| `wc -l file`          | `open --raw file \| lines \| length`                                            |
+| `touch file`          | `touch file`                                                                    |
+| `mkdir -p dir`        | `mkdir dir`                                                                     |
+| `rm -rf dir`          | `rm -r -f dir`                                                                  |
+| `cp src dst`          | `cp src dst`                                                                    |
+| `mv src dst`          | `mv src dst`                                                                    |
+| `find . -name "*.rs"` | `glob **/*.rs`                                                                  |
+| `test -f file`        | `try { ('file' \| path expand --strict \| path type) == file } catch { false }` |
+| `test -d dir`         | `try { ('dir' \| path expand --strict \| path type) == dir } catch { false }`   |
+| `basename path`       | `'path' \| path basename`                                                       |
+| `dirname path`        | `'path' \| path dirname`                                                        |
+
+These are common-intent mappings, not byte-for-byte POSIX equivalences. In
+particular, `glob` differs from `find` in hidden-file, symlink, depth, and
+matching behavior; set its flags explicitly when those details matter.
 
 ## Command Substitution
 
@@ -250,7 +254,7 @@ curl -s api | jq '.data | sort_by(.date)'
 ```
 
 ```nu
-# Nushell — native structured data
+# Nushell — automatically parsed when Content-Type names a supported format
 http get api | get users | select name email
 http get api | get items | length
 http get api | get data | sort-by date

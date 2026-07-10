@@ -47,6 +47,21 @@
   {
     "id": 10,
     "prompt": "Security review this Nushell helper: it expands `/srv/app` and a user path, then accepts the path when `$full | str starts-with $base`; it also creates temp files with `^mktemp`.",
-    "expected": "Flag the string-prefix containment bypass such as `/srv/app2`; use strict expansion plus `path relative-to` for existing paths. Prefer Nu 0.114's built-in `mktemp`/`mktemp --directory` for portable temp creation."
+    "expected": "Flag the string-prefix containment bypass such as `/srv/app2`; use strict expansion plus `path relative-to` for existing paths. Prefer Nu 0.114's built-in `mktemp`/`mktemp --directory`; because `mktemp` creates the file, use `save --force` when intentionally writing to that returned path and clean up in `finally`."
+  },
+  {
+    "id": 11,
+    "prompt": "Review this external-command check: `let result = (^cargo build o+e>| complete); if $result.exit_code != 0 { print -e $result.stderr }`.",
+    "expected": "Flag that merging stdout/stderr before `complete` removes the separate `stderr` field. Use `^cargo build | complete` when code needs `stdout`, `stderr`, and `exit_code`; only merge when interleaved output is intentional, then read `stdout`."
+  },
+  {
+    "id": 12,
+    "prompt": "Check these Bash-to-Nushell mappings for semantic equivalence: `${var:0:5}` -> `str substring 0..5`, `rm -rf dir` -> `rm -r dir`, and `test -f file` -> `path exists`.",
+    "expected": "Correct the substring to the half-open range `0..<5`, preserve force with `rm -r -f`, and use strict path expansion plus `path type == file` with missing-path error handling rather than `path exists`, which is also true for directories."
+  },
+  {
+    "id": 13,
+    "prompt": "Security review a `safe-glob` function that does `cd $base_dir; glob $pattern --depth 3` after only rejecting patterns containing `..`.",
+    "expected": "Show that an absolute pattern can escape the base without `..`; build the pattern from a strict-expanded base and validate every strict-resolved match with `path relative-to`, including symlink targets. Clarify that `--depth` limits traversal depth but is not a sandbox."
   }
 ]

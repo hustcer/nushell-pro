@@ -23,17 +23,17 @@ in this file; load detailed references only when the task needs them.
 
 4. Load the smallest relevant reference set:
 
-   | Task                                                 | Reference                                              |
-   | ---------------------------------------------------- | ------------------------------------------------------ |
-   | String quoting, interpolation, regex, globs          | [String Formats](references/string-formats.md)         |
-   | Security, paths, credentials, destructive operations | [Security](references/security.md)                     |
+   | Task                                                 | Reference                                                                                     |
+   | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+   | String quoting, interpolation, regex, globs          | [String Formats](references/string-formats.md)                                                |
+   | Security, paths, credentials, destructive operations | [Security](references/security.md)                                                            |
    | Script/code review                                   | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
-   | Bash/POSIX conversion                                | [Bash to Nushell](references/bash-to-nushell.md)       |
-   | Modules, exports, scripts, tests                     | [Modules & Scripts](references/modules-and-scripts.md) |
-   | Types, records, lists, conversions                   | [Data & Type System](references/data-and-types.md)     |
-   | Streaming, closures, performance, diagnostics        | [Advanced Patterns](references/advanced-patterns.md)   |
-   | Large columnar data                                  | [Dataframes](references/dataframes.md)                 |
-   | Common mistakes                                      | [Anti-Patterns](references/anti-patterns.md)           |
+   | Bash/POSIX conversion                                | [Bash to Nushell](references/bash-to-nushell.md)                                              |
+   | Modules, exports, scripts, tests                     | [Modules & Scripts](references/modules-and-scripts.md)                                        |
+   | Types, records, lists, conversions                   | [Data & Type System](references/data-and-types.md)                                            |
+   | Streaming, closures, performance, diagnostics        | [Advanced Patterns](references/advanced-patterns.md)                                          |
+   | Large columnar data                                  | [Dataframes](references/dataframes.md)                                                        |
+   | Common mistakes                                      | [Anti-Patterns](references/anti-patterns.md)                                                  |
 
 5. Apply the critical checks below before style or performance cleanup.
 6. Validate with the narrowest safe command, then run the relevant tests.
@@ -53,7 +53,8 @@ than inventing its contents.
   namespace with `export use sub` or flatten deliberately with
   `export use sub *`.
 - Use `run` for isolated pipeline scripts. The file must exist at parse time;
-  use `run --full-reparse` in watch/repeated-run workflows.
+  use `run --full-reparse` when the script may change between calls, such as a
+  watch or test-regeneration workflow.
 - Use `into semver`, `into semver-range`, and `semver bump` instead of lexical
   sorting or manual version splitting.
 - Use `str uppercase` and `str lowercase`; the old case-conversion commands are
@@ -118,9 +119,9 @@ if $result.exit_code != 0 {
 ```
 
 Do not treat rendered Nushell diagnostics as a stable machine format. Nested
-`nu ... | complete` errors contain ANSI styling and `|` gutters, and Nu hard-wraps
-them according to the caller's PTY width, including inside words. Prefer direct
-`try/catch` and `$err.details` when testing in-process behavior. When a CLI
+`nu ... | complete` errors may contain ANSI styling and `|` gutters, and Nu can
+hard-wrap them according to the caller's PTY width, including inside words.
+Prefer direct `try/catch` and `$err.details` when testing in-process behavior. When a CLI
 integration test must inspect rendered `stderr`, normalize both actual and
 expected text before matching:
 

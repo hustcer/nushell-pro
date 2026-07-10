@@ -179,8 +179,8 @@ def main []: string -> int {
 calling block is parsed; do not create the script earlier in the same parsed
 block and expect `run` to see it. Resolution uses the current directory,
 `NU_LIB_DIRS`, or explicit paths; it does not search `PATH`. Use
-`run --full-reparse script.nu` in file-watch loops or repeated test runs when
-the script file changes between invocations.
+`run --full-reparse script.nu` when the script file can change between
+invocations, such as file-watch loops or tests that regenerate the script.
 
 ### Parameterized scripts with main
 
@@ -335,8 +335,8 @@ def "assert positive" [n: int] {
 ### Stable assertions for nested Nushell diagnostics
 
 Rendered diagnostics from `nu script.nu | complete` are presentation text, not
-a stable protocol. They include ANSI sequences and `|` gutters, and they hard-wrap
-according to PTY width, sometimes inside words. Direct substring checks can pass
+a stable protocol. They may include ANSI sequences and `|` gutters, and can
+hard-wrap according to PTY width, sometimes inside words. Direct substring checks can pass
 in CI but fail in a narrower interactive terminal.
 
 Prefer direct `try/catch` and `$err.details` for in-process tests. When a CLI

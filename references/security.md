@@ -11,11 +11,18 @@
 
 ### Built-in safety advantages over Bash
 
-- **No `eval`** — Code cannot be dynamically generated and executed at runtime
-- **Static parsing** — All code is fully parsed before any evaluation occurs
+- **No in-process `eval` builtin** — Ordinary values are not reinterpreted as
+  Nushell source; explicit boundaries such as `nu -c` and `run` can still parse
+  and execute additional trusted code
+- **Parse-before-run blocks** — A parsed block is checked before that block is
+  evaluated; nested `nu -c` processes and `run --full-reparse` parse later code
 - **Arguments passed as arrays** — External command arguments go through `std::process::Command`, not through shell interpretation
-- **Type system** — Parameter types are checked at parse time, preventing many injection classes
-- **Scoped environment** — Environment changes are local to blocks by default
+- **Type system** — Parameter and pipeline types catch many correctness errors;
+  injection resistance still depends on avoiding string re-interpretation and
+  validating command/path boundaries
+- **Explicit environment scopes** — Ordinary `def`/`do` calls do not leak
+  environment changes to callers, while same-stack control flow such as `if`
+  can; use `with-env` when temporary scope is security-sensitive
 
 ### Remaining attack surfaces
 
@@ -43,13 +50,13 @@ Despite these advantages, Nushell scripts can still be vulnerable to:
 
 ### High risk
 
-| Threat            | Vector                    | Mitigation                                                      |
-| ----------------- | ------------------------- | --------------------------------------------------------------- |
-| Path traversal    | `open $user_path`         | Validate and canonicalize paths, check against base directory   |
-| Credential leak   | `$env.API_KEY = 'secret'` | Use `with-env` for scoped credentials                           |
-| PATH hijacking    | `$env.PATH` poisoning     | Use absolute paths for critical commands                        |
-| Glob injection    | `^rm $user_pattern`       | Validate input doesn't contain glob chars, or use `--no-expand` |
-| Env var injection | `$env.LD_PRELOAD`         | Clear dangerous env vars before running untrusted commands      |
+| Threat            | Vector                                   | Mitigation                                                               |
+| ----------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| Path traversal    | `open $user_path`                        | Validate and canonicalize paths, check against base directory            |
+| Credential leak   | `$env.API_KEY = 'secret'`                | Use `with-env` for scoped credentials                                    |
+| PATH hijacking    | `$env.PATH` poisoning                    | Use absolute paths for critical commands                                 |
+| Glob injection    | typed `glob` reaches an external command | Validate value types; keep literal external arguments as `string` values |
+| Env var injection | `$env.LD_PRELOAD`                        | Clear dangerous env vars before running untrusted commands               |
 
 ### Medium risk
 
@@ -204,13 +211,12 @@ let tmp = '/tmp/my-script-output'
 # Good — Nu 0.114 built-in, portable, and already returns a path string
 let tmp = mktemp --suffix .tmp
 try {
-    'data' | save $tmp
+    # mktemp already created the file, so overwriting must be explicit.
+    'data' | save --force $tmp
     # ... process the file ...
-} catch {|err|
+} finally {
     rm -f $tmp
-    error make {msg: $err.msg}
 }
-rm -f $tmp
 
 # Good — unique temp directory
 let tmpdir = mktemp --directory
@@ -219,7 +225,7 @@ let tmpdir = mktemp --directory
 ### 6. Safe rm and destructive operations
 
 ```nu
-# Bad — glob from user input, could match anything
+# Bad — an untrusted path or typed glob can target unintended files
 ^rm -rf $user_provided_path
 
 # Good — validate first
@@ -249,13 +255,27 @@ glob $pattern  # Could expand to unintended files
 
 # Good — escape or validate
 def safe-glob [pattern: string, --base-dir: path = '.'] {
-    # Ensure pattern doesn't escape base directory
-    if ($pattern | str contains '..') {
-        error make {msg: 'Pattern must not contain ..'}
+    let base = ($base_dir | path expand --strict)
+    let full_pattern = ($base | path join $pattern | path expand)
+
+    # Reject an absolute or parent-traversing pattern before glob walks it.
+    try {
+        $full_pattern | path relative-to $base | ignore
+    } catch {
+        error make {msg: $'Glob pattern escapes base directory: ($pattern)'}
     }
 
-    cd $base_dir
-    glob $pattern --depth 3  # Limit recursion depth
+    # Also validate every resolved match so symlink targets cannot leave base.
+    glob $full_pattern --depth 3
+    | each {|matched|
+        let full = ($matched | path expand --strict)
+        try {
+            $full | path relative-to $base | ignore
+        } catch {
+            error make {msg: $'Glob result escapes base directory: ($matched)'}
+        }
+        $full
+    }
 }
 ```
 
@@ -266,7 +286,7 @@ def safe-glob [pattern: string, --base-dir: path = '.'] {
 ^git push origin main
 
 # Good — check exit code
-let result = (^git push origin main o+e>| complete)
+let result = (^git push origin main | complete)
 if $result.exit_code != 0 {
     error make {msg: $'git push failed: ($result.stderr)'}
 }
@@ -290,14 +310,21 @@ def with-safe-path [block: closure] {
     }
 }
 
-# Clear dangerous env vars before running untrusted commands
-def safe-exec [cmd: string, ...args: string] {
+# Clear dangerous env vars and allow only pre-approved absolute executables.
+# This reduces environment/PATH hijacking; it is not a process sandbox.
+def restricted-exec [cmd: path, allowed: list<path>, ...args: string] {
+    let executable = ($cmd | path expand --strict)
+    let allowed = ($allowed | each { path expand --strict })
+    if $executable not-in $allowed {
+        error make {msg: $'Executable is not allowed: ($executable)'}
+    }
+
     with-env {
         LD_PRELOAD: null
         LD_LIBRARY_PATH: null
         DYLD_INSERT_LIBRARIES: null
     } {
-        run-external $cmd ...$args
+        run-external $executable ...$args
     }
 }
 ```
@@ -311,20 +338,22 @@ def safe-exec [cmd: string, ...args: string] {
 When Nushell calls CMD internal commands on Windows, arguments pass through `cmd.exe /D /C`:
 
 ```nu
-# These characters are dangerous in CMD context:
+# These characters need CMD-aware quoting:
 # & | < > ^ %
 # % expands environment variables: %USERNAME%
 # & chains commands: echo hello & whoami
 
-# Nushell blocks \r, \n, and % in CMD arguments (built-in protection)
-# But other special characters may still be risky
+# For Nushell's automatic CMD-internal dispatch, Nu rejects \r, \n, %, and
+# embedded unsafe quotes, and quotes arguments containing & | < > ^.
 ```
 
 ### Mitigation
 
-- Avoid CMD internal commands when possible
-- Use PowerShell or Nushell native commands instead
-- Validate input doesn't contain `&`, `|`, `<`, `>`, `^`
+- Prefer Nushell native commands or direct executables when possible.
+- Rely on Nushell's automatic CMD-internal argument escaping rather than
+  constructing a `cmd.exe /C` string yourself.
+- Treat explicit `^cmd.exe /C $untrusted_string` as a separate injection risk;
+  it reintroduces command-string interpretation.
 
 ---
 

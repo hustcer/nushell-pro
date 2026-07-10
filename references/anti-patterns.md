@@ -127,7 +127,7 @@ ls -la
 # Bad — parsing JSON from curl
 ^curl -s https://api.example.com | from json
 
-# Good — use http get (returns structured data directly)
+# Good — supported structured responses are parsed according to Content-Type
 http get https://api.example.com
 ```
 
@@ -367,7 +367,7 @@ sort                   # This is Nushell's sort, NOT Unix sort!
 let output = (^cargo build)
 
 # Good — use complete for full error info
-let result = (^cargo build o+e>| complete)
+let result = (^cargo build | complete)
 if $result.exit_code != 0 {
     print -e $'Build failed:\n($result.stderr)'
 }

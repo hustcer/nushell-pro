@@ -10,8 +10,8 @@ faster and more memory-efficient than native loops for this class of work.
 > Command shapes below are maintained for Nu 0.114 / Polars 0.54 behavior.
 > Polars evolves quickly; when in doubt, confirm a command's signature with
 > `scope commands | where name == 'polars <cmd>'` or
-> `help polars <cmd>` rather than trusting older docs. The plugin currently
-> ships ~150 `polars *` subcommands — `help polars` lists them all.
+> `help polars <cmd>` rather than trusting older docs. The 0.114 plugin ships
+> more than 180 `polars *` subcommands — `help polars` lists them all.
 
 ## Contents
 
@@ -73,8 +73,8 @@ polars open data.csv
 | polars select name status
 | polars collect                                      # executes the optimized plan
 
-# polars cache materializes the plan up to that point into a new lazy frame,
-# so a shared sub-plan is computed once instead of re-run by each branch.
+# polars cache adds a cache node to a new lazy frame. The plan is still lazy;
+# when executed, a shared sub-plan can be computed once instead of per branch.
 polars open data.csv | polars filter ((polars col ok) == true) | polars cache
 ```
 
@@ -601,8 +601,8 @@ data), `polars convert-time-zone`/`replace-time-zone`/`truncate`/`datepart`
 - Stay **lazy** end-to-end and `collect` once at the end — that lets the
   optimizer prune unused columns and push filters down to the file reader.
 - Reuse a stored frame for multiple aggregations instead of re-reading the file;
-  use `polars cache` to compute a shared sub-plan once when several branches
-  build on it.
+  use `polars cache` to add a cache node when several executed branches share
+  the same sub-plan.
 - Prefer native Polars expressions over `polars map-batches`; the closure path
   gives up vectorization.
 - For results that don't fit in memory, `polars save` from a lazy frame to

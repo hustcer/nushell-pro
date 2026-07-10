@@ -104,13 +104,11 @@ ls **/*.nu | each --flatten {|f|
 ### Processing large files
 
 ```nu
-# Bad — loads entire file into memory then filters
-open large.log | lines | where {$in =~ 'ERROR'}
+# Bad — `collect` materializes the whole stream before filtering
+open large.log | lines | collect | where {$in =~ 'ERROR'}
 
-# Good — streams line by line
-open large.log | lines | each --flatten {|line|
-    if ($line =~ 'ERROR') { $line }
-}
+# Good — `where` preserves streaming input
+open large.log | lines | where {$in =~ 'ERROR'}
 ```
 
 ### Batched processing
@@ -147,9 +145,9 @@ open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
   needs the full AST-style detail.
 - `watch`'s optional closure argument is deprecated. Pipe events into `each` or
   iterate with `for event in (watch ...)`.
-- `grid` no longer accepts a single record as input and no longer relies on the
-  implicit `name` column. Pass a table and the column explicitly, for example
-  `ls | grid name`.
+- `grid` no longer accepts a single record as input. For table/list input it
+  still uses a `name` column by default when present; pass a column explicitly
+  when another field is intended, for example `ls | grid name`.
 - `metadata set --datasource-ls` was removed. Use
   `metadata set --path-columns [name]` for path metadata on table columns.
 - On Unix-like systems, `kill -9 pid` shorthand is no longer accepted. Use
@@ -160,9 +158,9 @@ open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
 - In 0.113.1, `to yaml` emits more idiomatic plain scalars where safe and uses
   block style for multiline strings. Do not assert exact quotes around every
   string in YAML golden tests.
-- Nu 0.114 supports POSIX-style `--` for builtins, custom commands, and
-  `def --wrapped` commands. Use it for dash-prefixed positional values; known
-  externs still receive `--` and parse it themselves.
+- Nu 0.114 supports POSIX-style `--` for builtins and ordinary custom commands,
+  which consume it before dash-prefixed positional values. `def --wrapped`
+  commands and known externs preserve/forward `--` to their rest arguments.
 - Use `run script.nu` for reusable pipeline-stage scripts. It is a parser
   keyword, so the script must exist when the calling block is parsed. It accepts
   pipeline input, runs isolated from the caller, and supports `--full-reparse`
@@ -177,8 +175,9 @@ open file.txt | lines | parse -r '^(?<level>\w+) (?<message>.*)$'
   stream handling.
 - `append` accepts multiple values; `union`, `intersect`, `difference`,
   `combinations`, and `permutations` cover common immutable list/set work.
-- `from kdl` / `to kdl` support KDL v2 data. `to nuon --pretty` is shorthand
-  for readable two-space indentation and aligned table columns.
+- `from kdl` / `to kdl` support KDL v2 data. `to nuon --pretty` enables the
+  current readable pretty formatting (two-space indentation and aligned table
+  columns in 0.114).
 - `lines` replaces invalid UTF-8 by default; use `lines --strict` when invalid
   bytes should fail the pipeline.
 - `url encode` accepts binary input and `url decode --binary` can return binary
@@ -275,7 +274,7 @@ def robust-fetch [url: string] {
 ### External command error handling with complete
 
 ```nu
-let result = (^cargo build o+e>| complete)
+let result = (^cargo build | complete)
 if $result.exit_code != 0 {
     print -e $'Build failed:\n($result.stderr)'
 } else {
@@ -312,7 +311,10 @@ regressions with a narrow PTY as well as the normal test command.
 ### Suppress errors with `do -i` / `do -c`
 
 `do -i` (ignore errors) runs a closure and suppresses errors, returning null on failure.
-`do -c` (capture errors) catches errors and returns them as values.
+`do -c` (capture errors) turns failures inside the closure, including non-zero
+external exits, into Nushell pipeline errors. Those errors stop downstream
+commands unless an enclosing `try/catch` handles them; they are not ordinary
+record values.
 
 ```nu
 # Fire-and-forget — silently ignore failure
@@ -321,12 +323,16 @@ do -i { rm $old_file }
 # Concise default value pattern
 let config = (do -i { open settings.toml } | default {})
 
-# Capture errors as values (useful to abort downstream pipeline)
-let result = (do -c { ^failing-cmd })
+# Convert an external non-zero exit into a catchable Nushell error
+try {
+    do -c { ^failing-cmd }
+} catch {|err|
+    $err.details
+}
 
 # Compare error handling approaches:
 # do -i    — suppress error, return null (simplest)
-# do -c    — catch error as value, abort downstream pipeline on failure
+# do -c    — convert closure/external failures into pipeline errors
 # try/catch — inspect/log/recover from errors
 # complete  — full exit_code + stdout + stderr for externals
 ```
