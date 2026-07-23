@@ -188,6 +188,24 @@ let users = [
 ]
 ```
 
+Structured decoders can infer a homogeneous array of records as a table:
+
+```nu
+'[{"name":"Alice"},{"name":"Bob"}]' | from json | describe
+# => table<name: string>
+
+'[{"name":"Alice"},{"name":"Bob"}]'
+| from json
+| describe --detailed
+| get type
+# => list
+```
+
+A table remains list-like and satisfies `list` command parameters. Avoid a
+guard that only checks whether plain `describe` starts with `list`; it will
+reject valid tables. Use a typed `list` boundary when the command owns the
+error, or inspect the structured top-level type with `describe --detailed`.
+
 ### Ranges
 
 ```nu
@@ -255,6 +273,10 @@ assignment annotations are checked too:
 
 ```nu
 let value: int = (if $ok { 42 } else { null })  # errors when branch returns null
+
+# Mutable declarations use `mut`, not Rust-style `let mut`.
+mut errors: list<string> = []
+$errors = ($errors | append 'invalid input')
 ```
 
 ## Type Checking and Guards
@@ -273,8 +295,11 @@ def safe-process [value: any] {
     }
 }
 
-# Type predicates
-def is-list [] { ($in | describe) starts-with 'list' }
+# Type predicates. `describe --detailed` reports both native lists and tables
+# with the top-level type `list`; plain `describe` renders tables as `table<...>`.
+def is-list-like []: any -> bool {
+    ($in | describe --detailed | get type) == 'list'
+}
 ```
 
 ## Type Coercion Rules
@@ -392,6 +417,8 @@ $record.field? | default 'N/A'       # Provide fallback
 if ($record.field? != null) { ... }  # Check existence
 $list | default -e $fallback         # Default for empty collections
 $input | default 'anonymous'         # Default for null values
+$input | default (-1)                # Parenthesize a negative positional value
+$input | default -- -1               # Or terminate flag parsing explicitly
 ```
 
 > **`default`'s argument is eager.** `$x | default <expr>` evaluates `<expr>`

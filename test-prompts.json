@@ -63,5 +63,10 @@
     "id": 13,
     "prompt": "Security review a `safe-glob` function that does `cd $base_dir; glob $pattern --depth 3` after only rejecting patterns containing `..`.",
     "expected": "Show that an absolute pattern can escape the base without `..`; build the pattern from a strict-expanded base and validate every strict-resolved match with `path relative-to`, including symlink targets. Clarify that `--depth` limits traversal depth but is not a sandbox."
+  },
+  {
+    "id": 14,
+    "prompt": "Debug this Nu 0.114 checker: `let mut errors: list<string> = []; let fallback = ($value | default -1); if not (($rows | describe) | str starts-with 'list') { error make {msg: 'expected rows'} }`. `$rows` came from a homogeneous JSON array of objects.",
+    "expected": "Replace `let mut` with `mut errors: list<string> = []`; parenthesize the negative fallback as `default (-1)` or use `default -- -1`; explain that homogeneous JSON object arrays commonly describe as `table<...>` while remaining list-like, and use a typed list boundary or compare `(describe --detailed | get type)` with `'list'` to accept both lists and tables."
   }
 ]

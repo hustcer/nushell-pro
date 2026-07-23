@@ -49,6 +49,15 @@ than inventing its contents.
 - `if` without `else` and `match` without `_` may return `nothing`; add a
   fallback when the surrounding signature requires a non-null value.
 - Runtime assignment annotations are enforced by default.
+- Declare mutable bindings with `mut name[: type] = value`; `let mut` is not
+  valid Nushell syntax.
+- A bare negative number in command-argument position can be parsed as a flag.
+  Wrap it as an expression (`default (-1)`) or use the command separator
+  (`default -- -1`) when supported.
+- Homogeneous arrays of records loaded from JSON commonly describe as
+  `table<...>`, even though tables are list-like. Use a typed `list` parameter
+  or inspect the structured `type` from `describe --detailed` when code should
+  accept both lists and tables.
 - Exported submodules are not imported implicitly; re-export the intended
   namespace with `export use sub` or flatten deliberately with
   `export use sub *`.

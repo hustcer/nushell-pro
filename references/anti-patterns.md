@@ -72,6 +72,17 @@ def squares []: nothing -> list<int> {
 
 ## 3. Mutable Variables for Accumulation
 
+When mutation is genuinely needed, declare it with `mut`; `let mut` is invalid
+Nushell syntax. Type annotations follow the binding name.
+
+```nu
+# Bad — Rust-style declaration does not parse
+let mut errors: list<string> = []
+
+# Correct declaration syntax
+mut errors: list<string> = []
+```
+
 ```nu
 # Bad — imperative accumulation
 mut total = 0
@@ -225,6 +236,18 @@ let name = if $input == null { 'anonymous' } else { $input }
 let name = $input | default 'anonymous'
 ```
 
+A negative literal in command-argument position can be parsed as an unknown
+flag. Parenthesize it as an expression or terminate flag parsing explicitly:
+
+```nu
+# Bad — may be parsed as flag `-1`
+$input | default -1
+
+# Good
+$input | default (-1)
+$input | default -- -1
+```
+
 **Gotcha — the default _argument_ is evaluated eagerly**, even when the input is
 non-null, because it is an ordinary argument (not a closure). A "fallback" that
 can itself error or is expensive runs regardless:
@@ -254,6 +277,20 @@ let version = (open Cargo.toml | lines | where $it =~ '^version' | first | split
 # Good — native structured data support
 let version = (open Cargo.toml | get package.version)
 ```
+
+Do not assume a decoded JSON array of objects will describe as `list<record>`.
+Homogeneous rows are commonly inferred as `table<...>`, which is still
+list-like:
+
+```nu
+let rows = ('[{"id":1},{"id":2}]' | from json)
+$rows | describe                         # table<id: int>
+$rows | describe --detailed | get type  # list
+```
+
+For a list-or-table boundary, prefer a typed `list` parameter or the structured
+top-level type from `describe --detailed`; a string-prefix test for only `list`
+rejects valid tables.
 
 ## 15. Not Using `match` for Multi-Branch Logic
 
