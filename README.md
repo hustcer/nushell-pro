@@ -9,6 +9,7 @@ Write idiomatic, performant, secure, and maintainable [Nushell](https://www.nush
 - **Best Practices** — Naming conventions, type annotations, I/O signatures, functional pipeline style, string format priority, and formatting rules
 - **Security Hardening** — Injection prevention, path traversal protection, credential scoping, safe file/temp operations, environment sanitization
 - **Stable CLI Tests** — PTY-width-independent assertions for nested Nushell diagnostics
+- **Parse-First Validation** — `nu-check --debug` for scripts/modules, with behavioral checks for interpolation and generated payloads
 - **IDE Diagnostics** — JSONL-aware `nu --ide-check` validation that catches errors even when the process exits successfully
 - **Daemon & E2E Smoke Tests** — Deadline-based readiness checks, isolated state, tracked jobs/PIDs, and guaranteed cleanup
 - **Evidence-Driven Code Review** — Version-aware findings with concrete triggers, impact, reproduction evidence, precise locations, and severity
@@ -42,7 +43,8 @@ nushell-pro/
 ├── SKILL.md                             # Main skill (core rules, always loaded)
 ├── tests/
 │   ├── validation-and-daemon-smoke.nu   # Executable IDE/job lifecycle regression test
-│   └── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
+│   ├── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
+│   └── strings-and-validation-smoke.nu # Parse checks, JS data boundary and documented runner
 └── references/
     ├── nu-0.114-migration.md            # Version migration and compatibility checklist
     ├── nu-0.115-migration.md            # YAML, CLI, command, and review changes
@@ -97,11 +99,25 @@ The skill includes a version-aware review method plus a 5-category checklist:
 ## Validation
 
 ```bash
-nu --no-config-file --ide-check 100 tests/validation-and-daemon-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/validation-and-daemon-smoke.nu'
 nu --no-config-file tests/validation-and-daemon-smoke.nu
-nu --no-config-file --ide-check 100 tests/nu-0.115-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/nu-0.115-smoke.nu'
 nu --no-config-file tests/nu-0.115-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/strings-and-validation-smoke.nu'
+nu --no-config-file tests/strings-and-validation-smoke.nu
 ```
+
+Prefer `nu-check --debug` for ordinary parse checks and add `--as-module` for
+module content. Plain `nu-check` can print `false` while exiting `0`. Use
+`--ide-check` when diagnostic JSONL/spans are needed, checking its records as
+described in `SKILL.md`. Neither checker proves runtime behavior; `source`
+executes code and is not a parse-only alternative.
+
+The strings/validation suite requires Node for a controlled JavaScript
+round-trip; it uses no npm dependencies or browser service. It also extracts
+and executes the documented test runner, checking success, assertion failure,
+and empty selection. The validation findings and source references are recorded
+in [scripting validation evidence](docs/scripting-validation-evidence.md).
 
 The executable smoke tests cover JSONL IDE diagnostics, controlled job/process
 cleanup, YAML 1.2 boundaries, high-frequency 0.115 commands, null grouping,

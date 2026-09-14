@@ -98,5 +98,20 @@
     "id": 20,
     "prompt": "Review a Nu 0.115.0 minimum-version guard that directly passes `(('2.0.1' | into semver) >= '2.0.0')` to `assert` and assumes `into semver --loose | into string` removes a leading `v`. The project also supports Nu 0.114.",
     "expected": "Recognize native semver ordering but reproduce the 0.115.0 parser inference edge in a statically boolean context; use the documented one-item-list extraction workaround only for affected 0.115.0 code and a semver-range membership check for a 0.114-compatible gate. Explain that loose parsing retains the original prefix when converted back to string, so normalization must be explicit if required."
+  },
+  {
+    "id": 21,
+    "prompt": "A Nushell browser-test script builds window.renderProbe(name, engine, page) as JavaScript source using single-quoted interpolation and backslash-escaped parentheses. Names can contain quotes, parentheses, backslashes, newlines and leading zeros. Fix it without changing the browser API, and explain how you will verify the generated call.",
+    "expected": "Load the string reference; prefer a fixed program with separate data when the API allows it. For this source-only API, use fixed literal fragments and a to json --raw array of supported values, with a fixed function name. Do not insert raw names into JavaScript or treat JSON serialization as shell escaping. Validate Nu syntax and run a controlled JS consumer to assert exact values, including injection-looking strings remaining data; do not rely on parser success alone."
+  },
+  {
+    "id": 22,
+    "prompt": "Choose a validation command for a generated Nu script that writes files at top level and imports a sibling module. I currently source it as a syntax check. Would nu-check be more suitable than --ide-check? The local runtime is 0.115.1 and I have current English Nushell docs and source checkouts.",
+    "expected": "Prefer file-based nu-check --debug for ordinary validation, explaining that source executes top-level code and plain nu-check can return false with exit 0. Use --as-module only for module content. Do not pipe anonymous content while assuming its optional path preserves relative import context. Retain --ide-check for structured JSONL diagnostics and require record inspection. Verify against English docs/source and the runtime, distinguish parse-time type checks from runtime tests, and use an owned sentinel fixture rather than executing the real script to prove safety."
+  },
+  {
+    "id": 23,
+    "prompt": "Improve a tiny Nushell test runner that discovers scope commands, constructs print/source/test strings with escaped single quotes, then feeds the joined program to nu --commands. Keep it lightweight, preserve useful test names, and ensure zero selected tests or an assertion failure cannot print success.",
+    "expected": "Use explicit named test closures or the project's existing runner, invoke closures directly, reject an empty selection and let assertion failures stop the run before the success count. Do not construct another command string. Parse-check and execute the actual documented example, including failing and empty cases, so the documentation cannot silently drift from the tested code."
   }
 ]

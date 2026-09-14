@@ -17,7 +17,10 @@ in this file; load detailed references only when the task needs them.
    conventions before changing code.
 3. Establish both the project's supported Nu range (from CI, documentation, or
    project configuration) and the active local version. Do not assume the local
-   binary defines the compatibility target. From any shell, prefer:
+   binary defines the compatibility target. Prefer the official English docs;
+   translations can lag. When local docs/source checkouts are available, inspect
+   them and record their revision separately from the installed Nu version.
+   From any shell, prefer:
 
    ```console
    nu --version
@@ -35,7 +38,7 @@ in this file; load detailed references only when the task needs them.
    | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
    | Nu 0.115 migration, YAML, CLI args, command changes  | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
    | Nu 0.114 migration and version compatibility         | [Nu 0.114 Migration](references/nu-0.114-migration.md)                                        |
-   | String quoting, interpolation, regex, globs          | [String Formats](references/string-formats.md)                                                |
+   | Strings, regex/globs, generated JS/JSON              | [String Formats](references/string-formats.md)                                                |
    | Security, paths, credentials, destructive operations | [Security](references/security.md)                                                            |
    | Script/code review                                   | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
    | Bash/POSIX conversion                                | [Bash to Nushell](references/bash-to-nushell.md)                                              |
@@ -47,7 +50,10 @@ in this file; load detailed references only when the task needs them.
    | Common mistakes                                      | [Anti-Patterns](references/anti-patterns.md)                                                  |
 
 5. Apply the cross-cutting guardrails below before style or performance cleanup.
-6. Validate with the narrowest safe command, then run the relevant tests.
+6. Before a generated script's first real run, use `nu-check --debug` in the
+   intended scope. Assert exact output for tricky strings/serialized payloads,
+   then run the relevant tests; parsing alone cannot detect unintended but
+   valid interpolation. Use `--ide-check` when structured diagnostics are needed.
 7. Report security/correctness findings before style and performance notes.
 
 If a referenced file is unavailable, say so and continue with this file rather
@@ -120,12 +126,16 @@ with the same containment rule, then join only a validated leaf name.
 - Prefer simple literals and raw regex strings; use double quotes only when
   actual escapes are required.
 - Remember that `$'...'` interpolates but does not process escape sequences.
-- **A literal `(` forces `$"..."`.** Since `$'...'` does no escape processing,
+- **A literal `(` directly inside interpolation requires `$"..."`.** Since `$'...'` does no escape processing,
   every `(` inside it opens an interpolation expression and `\(` cannot prevent
   that. Write `$"\(abc)($var)"`, never `$'\(abc)($var)'`. The failure is often
   silent rather than an error: `$'(1 + 1) items'` evaluates to `2 items`. See
-  [String Formats](references/string-formats.md).
-- Never build command strings for execution.
+  [String Formats](references/string-formats.md). For generated code with many
+  delimiters, join plain literal fragments and serialized data instead.
+- Keep code and data separate across interpreters: pass argv/stdin/JSON to a
+  fixed program. If an API only accepts source, use a fixed, trusted template
+  with target-language serialization; a single argv string is still code when
+  the receiving tool evaluates it. Do not concatenate raw values into source.
 - Use kebab-case for commands/flags, snake_case for variables/parameters, and
   SCREAMING_SNAKE_CASE for environment variables.
 
@@ -188,14 +198,25 @@ output shows they are currently failing.
 
 ## Validation
 
-Use the narrowest safe commands first:
+For ordinary script/module validation, prefer `nu-check --debug`. It parses
+without running the target's top-level commands and reports parse-time type
+errors as well as syntax errors. Use the matching parse mode:
 
 ```bash
-nu --no-config-file --ide-check 100 path/to/script.nu
-nu -c 'source path/to/module.nu'
-nu path/to/test-script.nu
+nu --no-config-file -c 'nu-check --debug path/to/script.nu'
+nu --no-config-file -c 'nu-check --debug --as-module path/to/module.nu'
+nu --no-config-file path/to/test-script.nu
 ```
 
+- Without `--debug`, invalid content returns `false` and the surrounding `nu`
+  process can still exit `0`; consume the boolean explicitly. With `--debug`,
+  a parse error throws, so an uncaught failure exits nonzero. Missing files are
+  errors. Neither mode proves runtime correctness or provides a sandbox.
+- Pass the file path directly when checking a saved script with relative
+  imports. Piping its text to `nu-check` checks an anonymous source; the optional
+  path does not restore the file's import context when pipeline input is present.
+- For editor/CI integrations needing spans and diagnostic records, use
+  `nu --no-config-file --ide-check 100 path/to/script.nu`.
 - `--ide-check` emits JSON Lines on stdout and may still exit with code `0`
   when a record has `type: "diagnostic"` and `severity: "Error"`. It also
   exits `0` with empty output when the target file does not exist, so verify
@@ -208,8 +229,10 @@ nu path/to/test-script.nu
 - Prefer `--no-config-file` for reproducible standalone checks. Omit it when
   the script intentionally depends on commands or environment from user
   configuration, and document that dependency.
-- For scripts with side effects, source/parse-check them or run against a temp
-  fixture. When saving structured values, use a recognized data extension or
+- `source` executes top-level code; it is not a syntax check. Use it only when
+  intentionally loading audited definitions/setup. Validate side-effecting
+  scripts with `nu-check`/`--ide-check`, then execute in an owned temp fixture.
+  When saving structured values, use a recognized data extension or
   serialize explicitly (`to json`, `to yaml`, `to nuon`, and so on) before
   `save`.
 - Do not use `nu --testbin` in Nu 0.115+. Recreate the required behavior with

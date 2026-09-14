@@ -72,13 +72,14 @@ In Nushell, `\'` inside `$'...'` is NOT an escape — it's a literal backslash +
 let marker = $"'($pkg)@($ver)':"
 
 # Wrong — backslash doesn't escape in single quotes
-let marker = $'\'($pkg)@($ver)\':'  # Produces literal backslashes!
+let marker = $'\'($pkg)@($ver)\':'  # Can terminate the string and fail to parse.
 ```
 
 ### Literal Parentheses Need Double-Quoted Interpolation
 
-**Rule: if a string must contain a literal `(`, write it as `$"...\(..."`.
-`$'...'` cannot express a literal paren at all.**
+**Rule: a literal `(` directly in an interpolated string needs `$"...\(..."`.
+`$'...'` cannot escape a literal paren.** Plain strings and values inserted from
+variables can contain parentheses; they are not recursively interpreted.
 
 This is the single most common interpolation mistake. Because `$'...'` does no
 escape processing, `\` is always a literal backslash and `(` _always_ opens an
@@ -154,8 +155,9 @@ $'C:\Users\Data ($var)'            # => C:\Users\Data X
 $"C:\\Users\\Data ($var)"          # same result, noisier
 ```
 
-If a string needs both a literal `(` and literal backslashes, `$"..."` is the
-only option: escape both (`\(` and `\\`).
+If an interpolated literal needs both `(` and backslashes, escape both in
+`$"..."` (`\(` and `\\`). For code or other delimiter-heavy content, plain
+fragments joined with serialized values are often clearer; see below.
 
 #### Decision table
 
@@ -216,6 +218,64 @@ let nl = (char nl)
 | lines
 | parse '{key}={value}'
 ```
+
+## Code and Data Across Interpreter Boundaries
+
+When Nu invokes Node, a browser evaluator, or another shell, identify which
+parts are program text and which are data. Separate argv prevents the host
+shell from interpreting a value, but an `eval`/`-c` recipient still interprets
+its code argument. JSON serialization is not shell escaping.
+
+Prefer a fixed script with data passed as argv, stdin, or a file. Keep values
+structured until that boundary; do not manually escape quotes or backslashes.
+For example, an existing Node helper can read `JSON.parse(process.argv[2])`:
+
+```nu
+let values = ['deck (draft).pptx' 'wasm' 8]
+let payload = ($values | to json --raw)
+^node probe.mjs $payload
+```
+
+When an API only accepts JavaScript source, keep the function/template fixed
+and serialize the supported JSON values. Plain literal fragments make the
+parentheses unambiguous without nested Nu escape rules:
+
+```nu
+let values = ['deck (draft).pptx' 'wasm' 8]
+let payload = ($values | to json --raw)
+let expression = (['window.renderProbe(...' $payload ')'] | str join)
+# window.renderProbe(...["deck (draft).pptx","wasm",8])
+```
+
+The template is trusted; strings, numbers and booleans enter only through the
+JSON array. Do not insert raw data or a user-chosen function name into source.
+This recipe is for direct JavaScript evaluation, not HTML, shell, SQL, or
+arbitrary Nu values such as closures. Use the receiving language's data API
+when its serialization or embedding rules differ.
+
+For larger JS programs, keep the program in an `.mjs` file and use the tool's
+file/stdin mechanism; pass dynamic data separately where the API allows it.
+Changing Nu's quote style does not make raw JavaScript interpolation safe.
+
+### Verify Meaning as Well as Syntax
+
+`nu-check` accepts `$'(1 + 1) items'`, because evaluating `1 + 1` is valid Nu.
+An exact-output assertion catches the unintended result. Test values with
+quotes, parentheses, backslashes, newlines, Unicode, empty strings and leading
+zeros; for generated JavaScript, run a small controlled consumer and compare
+the decoded values, rather than only checking that Nu parsed the outer script.
+
+```nu
+use std/assert
+let count = 3
+let label = (["Done " ($count | into string) ' file(s)'] | str join)
+assert equal $label 'Done 3 file(s)'
+assert equal $"Done ($count) file\(s)" $label
+```
+
+Executable coverage is in `tests/strings-and-validation-smoke.nu`. Use English
+official documentation and the target Nu runtime to resolve syntax questions:
+[Working with Strings](https://www.nushell.sh/book/working_with_strings.html).
 
 ## String Type Overview
 

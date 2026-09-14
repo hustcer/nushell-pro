@@ -262,15 +262,16 @@ For stdin access: `#!/usr/bin/env -S nu --stdin`
 
 ## Parse-Time vs Runtime
 
-| Feature                | Parse-time      | Runtime               |
-| ---------------------- | --------------- | --------------------- |
-| `const` values         | Yes             | No (already resolved) |
-| `let` values           | No              | Yes                   |
-| `source` / `use` paths | Must be known   | N/A                   |
-| `run` script paths     | File must exist | Runs isolated         |
-| Type checking          | Yes             | Some                  |
-| `def` names            | Must be literal | N/A                   |
-| Syntax errors          | Caught here     | N/A                   |
+| Feature            | Parse-time      | Runtime                              |
+| ------------------ | --------------- | ------------------------------------ |
+| `const` values     | Yes             | No (already resolved)                |
+| `let` values       | No              | Yes                                  |
+| `source` path      | Must be known   | Executes script body                 |
+| `use` path         | Must be known   | Imports module; may run `export-env` |
+| `run` script paths | File must exist | Runs isolated                        |
+| Type checking      | Yes             | Some                                 |
+| `def` names        | Must be literal | N/A                                  |
+| Syntax errors      | Caught here     | N/A                                  |
 
 ```nu
 # Works — const is resolved at parse time
@@ -283,6 +284,37 @@ source $path    # Error: not a parse-time constant
 ```
 
 ## Testing
+
+### Parse Checks Before Execution
+
+Use `nu-check --debug script.nu` for ordinary script checks, and add
+`--as-module` only for module content. From a host shell, run a fixed command
+with `nu --no-config-file -c 'nu-check --debug script.nu'`. Within Nu, pass a
+runtime path directly as `nu-check --debug $script`; never interpolate an
+untrusted path into `nu -c` source.
+
+| Check                        | Failure contract                             | Intended use                                     |
+| ---------------------------- | -------------------------------------------- | ------------------------------------------------ |
+| `nu-check file.nu`           | `false` for parse errors; I/O failures throw | In-process boolean checks                        |
+| `nu-check --debug file.nu`   | Parse errors throw and show a diagnostic     | Default script validation                        |
+| `nu --ide-check 100 file.nu` | JSONL errors can accompany exit `0`          | Structured spans/diagnostics; parse every record |
+| `source file.nu`             | Executes the top-level code                  | Intentional loading, not validation              |
+
+Prefer file input when relative imports matter. `nu-check` with piped content
+parses anonymous input, even if a path argument is supplied; it does not use
+that path to recover the source file's import directory. Both parse checkers
+can catch static type errors but do not run the target's ordinary top-level
+commands, prove expected output, or isolate untrusted code in a sandbox.
+Run behavioral tests separately against owned fixtures.
+
+For `--ide-check`, verify the target exists, decode JSON Lines, fail on
+`type: diagnostic` / `severity: Error`, and surface other diagnostic severities.
+Hints are not failures. Check CLI exit/stderr and malformed JSONL separately;
+see the main Skill's validation rules and `tests/validation-and-daemon-smoke.nu`.
+
+Behavior verified with Nu 0.115.1 and the English
+[nu-check](https://www.nushell.sh/commands/docs/nu-check.html) /
+[source](https://www.nushell.sh/commands/docs/source.html) documentation.
 
 ### Nupm package tests
 
@@ -370,33 +402,34 @@ narrow PTY such as `stty cols 24 && nu tests/example.nu`.
 
 ### Basic test framework (without Nupm)
 
+Keep test registration explicit and execute closures directly. Building Nu
+source from discovered command names adds quoting, path and parser-state
+problems to the test runner itself. Fail on an empty selection and let failed
+assertions stop the run before printing a success count.
+
 ```nu
 use std/assert
-source fib.nu
+
+def increment [n: int]: nothing -> int {
+    $n + 1
+}
+
+def run-tests [cases: table<name: string, run: closure>]: nothing -> nothing {
+    if ($cases | is-empty) {
+        error make {msg: 'No tests selected'}
+    }
+    for case in $cases {
+        print $'Running test: ($case.name)'
+        do $case.run
+    }
+    print $'Tests passed: ($cases | length)'
+}
 
 def main [] {
-    print 'Running tests...'
-    let test_commands = (
-        scope commands
-            | where ($it.type == 'custom')
-                and ($it.name | str starts-with 'test ')
-                and not ($it.description | str starts-with 'ignore')
-            | get name
-            | each {|test| [$'print \'Running test: ($test)\'' $test] } | flatten
-            | str join '; '
-    )
-    nu --commands $'source ($env.CURRENT_FILE); ($test_commands)'
-    print 'Tests completed successfully'
-}
-
-def "test fib" [] {
-    for t in [[input expected]; [0 0] [1 1] [2 1] [5 5]] {
-        assert equal (fib $t.input) $t.expected
-    }
-}
-
-# ignore
-def "test skipped" [] {
-    print 'This test will not be executed'
+    let cases = [
+        {name: positive, run: {|| assert equal (increment 1) 2 }}
+        {name: negative, run: {|| assert equal (increment (-1)) 0 }}
+    ]
+    run-tests $cases
 }
 ```

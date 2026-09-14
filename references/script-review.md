@@ -302,6 +302,12 @@ that changed in the supported Nu version without first reproducing it.
 
 ### Tests and compatibility
 
+- [ ] Generated scripts are checked before their first real side effects;
+      `nu-check --debug` is the default, with `--as-module` only for modules
+- [ ] A plain `nu-check` boolean is consumed; exit `0` alone cannot prove it passed
+- [ ] `source` is used for intentional execution/loading, never as a parse-only check
+- [ ] Generated messages/payloads have output or consumer round-trip assertions;
+      valid but unintended interpolation can pass every parser check
 - [ ] Tests cover success, invalid input, boundary values, and external-command
       failure for changed behavior
 - [ ] Side-effecting tests use isolated temp fixtures and assert after the
