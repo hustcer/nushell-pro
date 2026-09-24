@@ -157,6 +157,9 @@ that changed in the supported Nu version without first reproducing it.
 
 ### Data-format contracts
 
+- [ ] Namespace-sensitive XML does not rely on `from xml` records: element and
+      attribute prefixes/URIs are dropped, and attributes such as `id` and
+      `r:id` collide with the later value winning (verified on Nu 0.115.1)
 - [ ] YAML call sites pin `--spec` when upstream YAML 1.1/1.2 semantics matter
 - [ ] `from yaml --multiple` produces a stable expected shape (`list` or
       `single`) at API boundaries instead of relying unintentionally on `auto`

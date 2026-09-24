@@ -141,6 +141,16 @@ with the same containment rule, then join only a validated leaf name.
 
 ### Data formats and grouping
 
+- `from xml` loses XML namespace identity (reproduced on Nu 0.115.1): it
+  stores only local names for elements and attributes, with no namespace URI
+  or declaration in the result. For example,
+  `<x xmlns:r="urn:r" id="plain" r:id="rel"/>` becomes an `attributes` record
+  containing only `id: rel`; reversing the two attributes leaves `id: plain`.
+  Later attributes overwrite earlier ones when their local names collide.
+  Do not use this record for namespace-sensitive XML lookups, edits, or
+  round-trips. Use a namespace-aware XML parser or, when the `query xml` plugin
+  is available, XPath with `--namespaces` (and `--output-names` when names
+  matter). Match namespace URI plus local name, not prefix spelling.
 - Nu 0.115 makes `from yaml` default to YAML 1.2 with strict non-string keys
   and tags. Pin `--spec`, `--multiple`, tag handling, and key resolution when
   the input contract is controlled by another system instead of inheriting
