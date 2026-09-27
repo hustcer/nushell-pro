@@ -451,3 +451,16 @@ metadata $value
 help my-command
 scope commands | where name == 'my-command'
 ```
+
+## Nu 0.116 diagnostics and cleanup
+
+Nested `finally` now unwinds before an outer `catch`; the old 0.115.0 boundary
+workaround is unnecessary when the minimum supported version is 0.116. Errors
+inside cleanup still replace the original error, so test failure paths too.
+Stream consumers (`length`, `columns`, `is-empty`) and `each while` now surface
+upstream errors. Same-size chained `par-each` pools no longer deadlock.
+
+For interactive tools use `tui debug` for headless key replay; `nu --dap` is
+the editor debugging interface. `std/log` emitters accept `--context` fields;
+do not include secrets. See [Nu 0.116 Migration](nu-0.116-migration.md) for
+tested examples and the limits of noninteractive verification.

@@ -113,17 +113,17 @@ def test-semver-comparison [] {
 
 def test-take-include-boundary [] {
     assert equal (
-        [1 2 3 4] | take until {|value| $value == 3 } --include 0
+        [1 2 3 4] | take until --include 0 {|value| $value == 3 }
     ) [1 2]
     assert equal (
-        [1 2 3 4] | take until {|value| $value == 3 } --include 1
+        [1 2 3 4] | take until --include 1 {|value| $value == 3 }
     ) [1 2 3]
     assert equal (
-        [1 2 3 4] | take while {|value| $value < 3 } --include 1
+        [1 2 3 4] | take while --include 1 {|value| $value < 3 }
     ) [1 2 3]
     # Counts above one keep consuming past the original stopping point.
     assert equal (
-        [1 2 3 4] | take until {|value| $value == 3 } --include 2
+        [1 2 3 4] | take until --include 2 {|value| $value == 3 }
     ) [1 2 3 4]
 }
 
@@ -167,11 +167,15 @@ def test-deprecation-metadata [] {
 def test-nested-finally-cleanup [] {
     # Locks a 0.115.0 defect: a `try/finally` nested directly inside an outer
     # `try` whose handler is `catch` silently skips the inner `finally`.
-    # When a patched Nu runs the cleanup, this assertion fails and the guidance
-    # in references/nu-0.115-migration.md must be retracted.
+    # Fixed in 0.116; retain the historical expectation for older targets.
+    let expected = if (version | get version | into semver) in ('>=0.116.0' | into semver-range) {
+        ['INNER' 'OUTER']
+    } else {
+        ['OUTER']
+    }
     assert equal (run-nu-lines r#'try {
     try { error make {msg: "inner"} } finally { print "INNER" }
-} catch { print "OUTER" }'#) ['OUTER']
+} catch { print "OUTER" }'#) $expected
 
     # A `do` boundary restores the cleanup.
     assert equal (run-nu-lines r#'try {

@@ -125,9 +125,9 @@ that changed in the supported Nu version without first reproducing it.
 - [ ] No bare `error make {msg: '...'}` without span when metadata is available
 - [ ] Nu 0.115 labels use `{text: ..., span: {start: ..., end: ...}}`, not flat
       `{text, start, end}` records
-- [ ] No `try/finally` is nested directly inside an outer `try` whose handler is
-      `catch`; on Nu 0.115.0 the inner `finally` is silently skipped, so cleanup
-      needs an outer `finally` or a `do`/command boundary
+- [ ] When supporting Nu 0.115.0, avoid nesting `try/finally` directly in an
+      outer `try/catch`: use outer `finally` or a `do`/command boundary.
+      Nu 0.116 fixes the skipped cleanup; test ownership without requiring the workaround
 
 ### Null safety
 
@@ -150,7 +150,7 @@ that changed in the supported Nu version without first reproducing it.
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
 - [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
 - [ ] SemVer logic uses `into semver`, direct comparison on Nu 0.115 (including
-      the 0.115.0 bool-context inference workaround when required),
+      the 0.115.0 bool-context inference workaround when required; fixed in 0.116),
       `into semver-range`, or `semver bump`, not string surgery
 - [ ] `take while/until --include` has boundary tests for include counts zero,
       one, and greater than one when off-by-one behavior matters
@@ -167,8 +167,13 @@ that changed in the supported Nu version without first reproducing it.
       `--key-resolution verbatim` / `--ignore-tags` are not used as validation
 - [ ] `to yaml` non-round-trip handling is deliberate, and golden tests compare
       semantics unless exact formatting is the contract
-- [ ] `--non-roundtrip` values are quoted (`'null'`); bare `null` is a parse
-      error and `to yaml --non-roundtrip 'lossy'` is rejected on 0.115.0
+- [ ] Quote `--non-roundtrip 'null'` for 0.115 compatibility; raw null works
+      on 0.116, but `'lossy'` alone still fails on 0.116.0
+- [ ] Nu 0.116 YAML writers use `--list-indent compact|indented`, not the removed flag
+- [ ] Nu 0.116 completers use named inputs and `place.command`, with engine-driven tests
+- [ ] Record-spread flags have validated keys and intentional null/default semantics
+- [ ] Dotted `default` arguments distinguish nested paths from quoted literal keys
+- [ ] `save --force` destinations are validated even when parents do not yet exist (0.116 creates them)
 - [ ] YAML call sites that read colon-bearing scalars (`HH:MM:SS`, IDs) account
       for the 1.1 sexagesimal / 1.2 string split
 - [ ] KDL spec and `nodes`/`jik` format are pinned when files cross a system

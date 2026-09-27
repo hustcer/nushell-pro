@@ -1,7 +1,7 @@
 ---
 name: nushell-pro
 description: |
-  Comprehensive Nushell scripting best practices, idioms, security, and evidence-driven code review. Use when writing, reviewing, auditing, debugging, or refactoring Nushell (.nu) scripts, modules, custom commands, pipelines, config, and tests. Also use for Bash/POSIX-to-Nushell conversion and Nu 0.114/0.115 migration issues such as stricter types, YAML 1.2, `external_arg`, `run`, SemVer, optional `nothing`, subprocess diagnostics, and explicit submodule imports.
+  Comprehensive Nushell scripting best practices, idioms, security, and evidence-driven code review. Use when writing, reviewing, auditing, debugging, or refactoring Nushell (.nu) scripts, modules, custom commands, pipelines, config, and tests. Also use for Bash/POSIX-to-Nushell conversion and Nu migration issues including custom completions, record-spread flags, YAML, SemVer, cleanup, and subprocess diagnostics.
 ---
 
 # Nushell Pro
@@ -36,6 +36,7 @@ in this file; load detailed references only when the task needs them.
 
    | Task                                                 | Reference                                                                                     |
    | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+   | Nu 0.116 migration, completions, flag spreading, cleanup | [Nu 0.116 Migration](references/nu-0.116-migration.md)                                      |
    | Nu 0.115 migration, YAML, CLI args, command changes  | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
    | Nu 0.114 migration and version compatibility         | [Nu 0.114 Migration](references/nu-0.114-migration.md)                                        |
    | Strings, regex/globs, generated JS/JSON              | [String Formats](references/string-formats.md)                                                |
@@ -48,6 +49,9 @@ in this file; load detailed references only when the task needs them.
    | Streaming, closures, performance, diagnostics        | [Advanced Patterns](references/advanced-patterns.md)                                          |
    | Large columnar data                                  | [Dataframes](references/dataframes.md)                                                        |
    | Common mistakes                                      | [Anti-Patterns](references/anti-patterns.md)                                                  |
+
+   Only the three newest migration guides are listed here. For earlier versions,
+   consult the [migration archive](references/archive/README.md).
 
 5. Apply the cross-cutting guardrails below before style or performance cleanup.
 6. Before a generated script's first real run, use `nu-check --debug` in the
@@ -82,6 +86,9 @@ on syntax or behavior that changed between Nushell releases.
   before treating them as structured application data.
 - Prefer `match` for several branches on one value; use `if` for one-off boolean
   predicates.
+- On Nu 0.116, record spreads pass named flags to internal/custom commands.
+  Null omits flags unless their type accepts `nothing`; switch false/null also
+  omits the flag. Validate forwarded keys and preserve default/null intent.
 
 ### External commands and errors
 
@@ -94,7 +101,8 @@ on syntax or behavior that changed between Nushell releases.
 - On Nu 0.115.0, a `try/finally` nested directly inside an outer `try` whose
   handler is `catch` silently skips the inner `finally`. Give the outer block a
   `finally`, or put the inner one behind a `do`/command boundary, and assert
-  that the owned state is gone.
+  that the owned state is gone. This defect is fixed in 0.116; keep the
+  workaround only when the supported versions need it.
 - Treat rendered nested-Nu diagnostics as presentation text, not a stable
   protocol. For CLI tests, normalize ANSI styling, gutters, and PTY wrapping
   before matching a long, domain-specific phrase.
@@ -157,9 +165,10 @@ with the same containment rule, then join only a validated leaf name.
   defaults accidentally.
 - Let `to yaml` reject non-round-trippable values by default. Opt out only when
   that data loss is part of the documented contract, and quote the value:
-  `--non-roundtrip 'null'`. A bare `null` is a parse error, and
-  `--non-roundtrip 'lossy'` is rejected by `to yaml` on 0.115.0, so use
-  `--serialize` when a lossy encoding is genuinely wanted.
+  `--non-roundtrip 'null'` works across 0.115/0.116; bare `null` works from
+  0.116. `--non-roundtrip 'lossy'` alone is still rejected on 0.116.0, so use
+  `--serialize` when a lossy encoding is genuinely wanted. On 0.116 replace
+  `--compact-list-indent` with `--list-indent compact|indented`.
 - `group-by` record output cannot represent a null key and omits that group in
   Nu 0.115. Use `group-by --to-table` when null groups must be retained or
   distinguished from empty strings.
@@ -175,6 +184,9 @@ with the same containment rule, then join only a validated leaf name.
 - Use `par-each` only when concurrency is safe and beneficial; preserve `each`
   when order or sequential side effects matter.
 - Add `lines` before `parse` when line-by-line stream parsing is intended.
+- On Nu 0.116, streamed errors reach `length`, `columns`, `is-empty`, and
+  `each while`; consume streams in tests and fix upstream failures. Put flags
+  before predicates in row-condition commands such as `take until`.
 - Prefer direct row conditions for simple `any`/`all` predicates on Nu 0.115;
   retain closures when the predicate needs setup, destructuring, or reuse.
 - Use native tables for small interactive data and Polars for large columnar
@@ -190,6 +202,9 @@ with the same containment rule, then join only a validated leaf name.
 - `source`, `use`, and `run` targets must be trusted and available at parse time.
 - Test at the correct seam: direct functions for stable structured errors, CLI
   subprocesses for argument parsing/process boundaries, and both when needed.
+- For Nu 0.116 completers, use named `token`/`place`/`buffer` inputs and
+  `place.command` for shell words. Test via `commandline complete`; load the
+  0.116 migration guide for output/fallback rules and `@interactive` ownership.
 
 ## Review Order
 
@@ -229,8 +244,8 @@ nu --no-config-file path/to/test-script.nu
   `nu --no-config-file --ide-check 100 path/to/script.nu`.
 - `--ide-check` emits JSON Lines on stdout and may still exit with code `0`
   when a record has `type: "diagnostic"` and `severity: "Error"`. It also
-  exits `0` with empty output when the target file does not exist, so verify
-  the path exists before treating an empty result as a pass. Parse every
+  exits `0` with empty output for missing files on older versions; 0.116 fixes
+  that case with a nonzero exit. Verify the path for cross-version checks. Parse every
   non-empty line with `from json`; do not use the process exit code alone.
   Treat `severity: "Error"` diagnostics as blockers, surface other severities
   such as `Warning` without blocking, and ignore `type: "hint"` records.

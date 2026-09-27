@@ -311,6 +311,9 @@ For `--ide-check`, verify the target exists, decode JSON Lines, fail on
 `type: diagnostic` / `severity: Error`, and surface other diagnostic severities.
 Hints are not failures. Check CLI exit/stderr and malformed JSONL separately;
 see the main Skill's validation rules and `tests/validation-and-daemon-smoke.nu`.
+Nu 0.116 fixes the old missing-file success case: unreadable targets now exit
+nonzero. Keep the path precheck for cross-version runners, and keep inspecting
+JSONL for ordinary diagnostics. See [Nu 0.116 Migration](nu-0.116-migration.md).
 
 Behavior verified with Nu 0.115.1 and the English
 [nu-check](https://www.nushell.sh/commands/docs/nu-check.html) /

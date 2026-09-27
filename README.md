@@ -17,6 +17,7 @@ Write idiomatic, performant, secure, and maintainable [Nushell](https://www.nush
 - **Type System** — Type hierarchy, complex types, type guards, null safety patterns
 - **Nu 0.114 Support** — Stricter type checking, explicit submodule imports, `run`, POSIX `--`, SemVer, spreadsheet import changes, and updated diagnostics
 - **Nu 0.115 Support** — YAML 1.2 contracts, `external_arg`, row conditions, binary filesize slicing, SemVer comparisons, null grouping, test migrations, and reproduction-verified workarounds for known 0.115.0 defects
+- **Nu 0.116 Support** — Unified completions, record-spread flags, YAML option migration, repaired cleanup/type inference, stream errors, recursive transforms, and headless TUI tests
 - **Bash Conversion** — Side-by-side Bash-to-Nushell translation guide
 - **Performance** — Parallel processing with `par-each`, streaming patterns, memory-efficient techniques
 - **Data Processing** — Polars dataframes (lazy/eager), group-by, joins, window/sequence ops, nested list/struct data, reshaping, binning, time zones, SQL, column selectors, and large-data / columnar analytics
@@ -41,13 +42,17 @@ git clone https://github.com/hustcer/nushell-pro.git /path/to/skills/nushell-pro
 ```
 nushell-pro/
 ├── SKILL.md                             # Main skill (core rules, always loaded)
+├── .agents/skills/update-nu/SKILL.md     # Release-driven maintenance workflow
 ├── tests/
 │   ├── validation-and-daemon-smoke.nu   # Executable IDE/job lifecycle regression test
 │   ├── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
+│   ├── nu-0.116-smoke.nu                # Completion, flag, cleanup, data and TUI regression test
 │   └── strings-and-validation-smoke.nu # Parse checks, JS data boundary and documented runner
 └── references/
     ├── nu-0.114-migration.md            # Version migration and compatibility checklist
     ├── nu-0.115-migration.md            # YAML, CLI, command, and review changes
+    ├── nu-0.116-migration.md            # Completions, flag spreads, cleanup and data changes
+    ├── archive/                        # Older migrations (latest three stay in the entrypoint)
     ├── security.md                      # Threat model, safe patterns, Windows risks
     ├── script-review.md                 # Review method + 5-category checklist
     ├── anti-patterns.md                 # 35 anti-patterns with fixes
@@ -103,6 +108,8 @@ nu --no-config-file -c 'nu-check --debug tests/validation-and-daemon-smoke.nu'
 nu --no-config-file tests/validation-and-daemon-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/nu-0.115-smoke.nu'
 nu --no-config-file tests/nu-0.115-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/nu-0.116-smoke.nu'
+nu --no-config-file tests/nu-0.116-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/strings-and-validation-smoke.nu'
 nu --no-config-file tests/strings-and-validation-smoke.nu
 ```
@@ -122,9 +129,16 @@ in [scripting validation evidence](docs/scripting-validation-evidence.md).
 The executable smoke tests cover JSONL IDE diagnostics, controlled job/process
 cleanup, YAML 1.2 boundaries, high-frequency 0.115 commands, null grouping,
 SemVer edge cases, and raw script CLI arguments. They also lock two Nu 0.115.0
-defects — `to yaml --non-roundtrip 'lossy'` being rejected, and a nested
-`finally` being skipped — so the guidance is retracted as soon as a patched Nu
-makes those assertions fail.
+defects with version-aware expectations: `to yaml --non-roundtrip 'lossy'`
+alone remains rejected on 0.116.0, while nested `finally` is fixed in 0.116.
+The 0.116 suite also tests the completion engine, record-spread flags, error
+propagation, parent-directory creation and headless TUI selection.
+
+For the next release, invoke [update-nu](.agents/skills/update-nu/SKILL.md).
+Set `NU_DOC_REPO` and `NU_SOURCE_REPO` via environment variables or the local
+`.env` (see `.env-example`). The workflow checks upstream freshness and requires
+a matching local Nu binary before updating guidance. It keeps only the newest
+three migration guides in the main entrypoint and archives older ones.
 
 ## License
 
