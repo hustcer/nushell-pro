@@ -20,6 +20,13 @@ nu --no-config-file -c 'nu-check --debug tests/nu-0.116-smoke.nu'
 nu --no-config-file tests/nu-0.116-smoke.nu
 ```
 
+The 0.115/0.116 suites launch nested Nu through `$nu.current-exe`, so an
+explicit binary selection is preserved even when PATH points elsewhere. The
+chained `par-each` regression runs in an isolated process with a deadline;
+the suite also exercises forced timeout and verifies job/process cleanup.
+These harness checks were rerun on 0.116.0; no older binary was revalidated
+in this follow-up review.
+
 Core examples and regressions below are CLI-tested. Interactive terminal
 ownership, editor DAP sessions, plugins, Windows fixes, and performance claims
 are release-note guidance, not measured results on those environments.
@@ -196,19 +203,19 @@ restoration and interactive pickers still need a PTY/manual check.
 
 Other release-note items worth routing on demand:
 
-| Area | Guidance |
-| --- | --- |
-| Debugging | `nu --dap` serves DAP over stdio; validate with a DAP client, not as a syntax checker. |
-| Source inspection | `view source --dependencies` includes transitive private helpers and captured constants; inspect output before sharing it. |
-| Logging | `std/log` emitters accept `--context` records; keep credentials out of context. |
-| Conversion/hash | `into float` accepts decimal commas; `hash sha512` is available. Do not confuse decimal commas with thousands grouping. |
-| Completion menus | `completions.persistent_menus` defaults false; true keeps menus open while editing. |
-| Keybindings | `SwitchMode`, `vi_visual`, and its cursor shape are new; `vi_normal` bindings no longer apply in visual mode. |
-| Polars | New `date-range`, `date-ranges`, `datetime-range`, `datetime-ranges`; requires the plugin, absent in this validation environment. |
-| MCP | HTTP bind default is now loopback `127.0.0.1`; remote clients need explicit configuration, not a broad-bind workaround by default. |
+| Area                | Guidance                                                                                                                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Debugging           | `nu --dap` serves DAP over stdio; validate with a DAP client, not as a syntax checker.                                                                                                                                      |
+| Source inspection   | `view source --dependencies` includes transitive private helpers and captured constants; inspect output before sharing it.                                                                                                  |
+| Logging             | `std/log` emitters accept `--context` records; keep credentials out of context.                                                                                                                                             |
+| Conversion/hash     | `into float` accepts decimal commas; `hash sha512` is available. Do not confuse decimal commas with thousands grouping.                                                                                                     |
+| Completion menus    | `completions.persistent_menus` defaults false; true keeps menus open while editing.                                                                                                                                         |
+| Keybindings         | `SwitchMode`, `vi_visual`, and its cursor shape are new; `vi_normal` bindings no longer apply in visual mode.                                                                                                               |
+| Polars              | New `date-range`, `date-ranges`, `datetime-range`, `datetime-ranges`; requires the plugin, absent in this validation environment.                                                                                           |
+| MCP                 | HTTP bind default is now loopback `127.0.0.1`; remote clients need explicit configuration, not a broad-bind workaround by default.                                                                                          |
 | Startup/performance | `$nu.startup-time` measures through first prompt readiness; hooks see provisional timing. Do not compare it directly with older measurements. Source caching/parser/plugin startup improved; benchmark the actual workload. |
-| Windows | Dot-glob deletion skips `.`/`..`; interactive rm prompt handling fixed. Retain deletion/path guards. |
-| Display/tools | Locale date formatting, narrow tables, redirected help, `idx search` limits and `query web` headerless tables have fixes; retest affected integrations. |
+| Windows             | Dot-glob deletion skips `.`/`..`; interactive rm prompt handling fixed. Retain deletion/path guards.                                                                                                                        |
+| Display/tools       | Locale date formatting, narrow tables, redirected help, `idx search` limits and `query web` headerless tables have fixes; retest affected integrations.                                                                     |
 
 ## Review checklist
 

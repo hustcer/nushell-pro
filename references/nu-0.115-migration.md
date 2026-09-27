@@ -113,7 +113,7 @@ emits each item of a list as its own YAML document, mirroring
 ### Parser keywords and `$ans` are reserved
 
 Commands, aliases, module names, exports, and wildcard imports must not shadow
-parser keywords. `export main` also fails when the *module* is named to shadow
+parser keywords. `export main` also fails when the _module_ is named to shadow
 a keyword — the conflict is on the module name, not on `main` itself. Check the
 final imported namespace, not just the local `def` declarations.
 
@@ -314,7 +314,7 @@ column is not a whole-record reduction.
   the mismatch surfacing at runtime now fails earlier and more visibly.
 - Quotes inside `(...)` subexpressions of interpolated strings now lex
   correctly, so `$"('" "')"` prints `" "`. This does not relax the separate
-  rule that a *literal* parenthesis still requires `$"..."` with `\(`; see
+  rule that a _literal_ parenthesis still requires `$"..."` with `\(`; see
   [Anti-Patterns](anti-patterns.md).
 - `stor import --file-name` with a missing path now fails instead of creating
   an empty file and silently discarding the in-memory database.

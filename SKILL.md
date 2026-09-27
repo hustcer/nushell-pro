@@ -34,21 +34,21 @@ in this file; load detailed references only when the task needs them.
 
 4. Load the smallest relevant reference set:
 
-   | Task                                                 | Reference                                                                                     |
-   | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-   | Nu 0.116 migration, completions, flag spreading, cleanup | [Nu 0.116 Migration](references/nu-0.116-migration.md)                                      |
-   | Nu 0.115 migration, YAML, CLI args, command changes  | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
-   | Nu 0.114 migration and version compatibility         | [Nu 0.114 Migration](references/nu-0.114-migration.md)                                        |
-   | Strings, regex/globs, generated JS/JSON              | [String Formats](references/string-formats.md)                                                |
-   | Security, paths, credentials, destructive operations | [Security](references/security.md)                                                            |
-   | Script/code review                                   | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
-   | Bash/POSIX conversion                                | [Bash to Nushell](references/bash-to-nushell.md)                                              |
-   | Modules, exports, scripts, tests                     | [Modules & Scripts](references/modules-and-scripts.md)                                        |
-   | Daemons, background jobs, E2E smoke tests            | [Daemon & E2E Smoke Tests](references/daemon-and-e2e-smoke-tests.md)                          |
-   | Types, records, lists, conversions                   | [Data & Type System](references/data-and-types.md)                                            |
-   | Streaming, closures, performance, diagnostics        | [Advanced Patterns](references/advanced-patterns.md)                                          |
-   | Large columnar data                                  | [Dataframes](references/dataframes.md)                                                        |
-   | Common mistakes                                      | [Anti-Patterns](references/anti-patterns.md)                                                  |
+   | Task                                                     | Reference                                                                                     |
+   | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+   | Nu 0.116 migration, completions, flag spreading, cleanup | [Nu 0.116 Migration](references/nu-0.116-migration.md)                                        |
+   | Nu 0.115 migration, YAML, CLI args, command changes      | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
+   | Nu 0.114 migration and version compatibility             | [Nu 0.114 Migration](references/nu-0.114-migration.md)                                        |
+   | Strings, regex/globs, generated JS/JSON                  | [String Formats](references/string-formats.md)                                                |
+   | Security, paths, credentials, destructive operations     | [Security](references/security.md)                                                            |
+   | Script/code review                                       | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
+   | Bash/POSIX conversion                                    | [Bash to Nushell](references/bash-to-nushell.md)                                              |
+   | Modules, exports, scripts, tests                         | [Modules & Scripts](references/modules-and-scripts.md)                                        |
+   | Daemons, background jobs, E2E smoke tests                | [Daemon & E2E Smoke Tests](references/daemon-and-e2e-smoke-tests.md)                          |
+   | Types, records, lists, conversions                       | [Data & Type System](references/data-and-types.md)                                            |
+   | Streaming, closures, performance, diagnostics            | [Advanced Patterns](references/advanced-patterns.md)                                          |
+   | Large columnar data                                      | [Dataframes](references/dataframes.md)                                                        |
+   | Common mistakes                                          | [Anti-Patterns](references/anti-patterns.md)                                                  |
 
    Only the three newest migration guides are listed here. For earlier versions,
    consult the [migration archive](references/archive/README.md).

@@ -9,6 +9,39 @@ def complete-choice [token: record] {
 }
 def choose [value: string@complete-choice] { $value }
 
+# Isolate potentially deadlocking code in a killable process, not a Nu worker.
+# Use the job's own ID as the mailbox tag so a late result cannot satisfy a
+# later invocation. This helper is only called from this suite's main thread.
+def run-nu-bounded [program: string, --timeout: duration = 5sec] {
+    # job kill shells out to kill/taskkill; detect a stripped PATH before
+    # creating a child that could otherwise survive failed cancellation.
+    let kill_tool = if $nu.os-info.name == windows { 'taskkill' } else { 'kill' }
+    if (which --all $kill_tool | where type == external | is-empty) {
+        error make {msg: $'Nu job cleanup requires external ($kill_tool) on PATH'}
+    }
+    let nu_exe = $nu.current-exe
+    let worker = (job spawn {
+        let result = (^$nu_exe --no-config-file -c $program | complete)
+        $result | job send 0 --tag (job id)
+    })
+    let outcome = try {
+        {result: (job recv --tag $worker --timeout $timeout)}
+    } catch {|err| {error: $err} }
+    let child_pids = (job list | where id == $worker | get pids | flatten)
+    try { job kill $worker }
+    let deadline = ((date now) + 2sec)
+    loop {
+        let child_alive = (ps | where {|p| $p.pid in $child_pids } | is-not-empty)
+        if $worker not-in (job list | get id) and not $child_alive { break }
+        if (date now) >= $deadline { error make {msg: 'Nu test process cleanup timed out'} }
+        sleep 20ms
+    }
+    if $outcome.error? != null {
+        error make {msg: $'Nu test process timed out after ($timeout)'}
+    }
+    $outcome.result
+}
+
 def test-flags [] {
     assert equal (flags --count=(null)).count 5
     assert equal (flags --nullable=null).nullable null
@@ -26,7 +59,7 @@ def test-completion [] {
     assert equal $input.buffer 'git checkout mai'
     assert equal ('choose al' | commandline complete --detailed | get value) [alpha]
     assert error { 'choose al' | commandline complete --input --detailed }
-    let external = (^nu --no-config-file -c r#'
+    let external = (^$nu.current-exe --no-config-file -c r#'
 $env.config.completions.external.completer = {|place| [($place.command | str join ":")] }
 alias gco = git checkout
 "gco ma" | commandline complete --detailed | get value | to json
@@ -35,7 +68,7 @@ alias gco = git checkout
     assert equal ($external.stdout | from json) ['git:checkout:ma']
     # Release notes overstate the rejection of unknown positional names:
     # the first two positions still use the deprecated compatibility bridge.
-    let legacy = (^nu --no-config-file -c r#'
+    let legacy = (^$nu.current-exe --no-config-file -c r#'
 def old-completer [anything] { [($anything | describe)] }
 def old-choice [x: string@old-completer] {}
 "old-choice " | commandline complete --detailed | get value | to json
@@ -70,11 +103,19 @@ def test-data [] {
     assert error { [[name size]; [a 100b]] | where size <= 150 | columns }
     assert error { [[name size]; [a 100b]] | where size <= 150 | is-empty }
     assert error { [1 2] | each while { error make {msg: 'stream error'} } | collect }
-    assert equal (0..99 | par-each --threads 1 { $in } | par-each --threads 1 { $in } | length) 100
+    let parallel = (run-nu-bounded '0..99 | par-each --threads 1 { $in } | par-each --threads 1 { $in } | length')
+    assert equal $parallel.exit_code 0
+    assert equal ($parallel.stdout | str trim) '100'
+    # Exercise cancellation as well as the fast successful path.
+    let timeout_error = try {
+        run-nu-bounded 'sleep 1min' --timeout 100ms
+        null
+    } catch {|err| $err.msg }
+    assert equal $timeout_error 'Nu test process timed out after 100ms'
 }
 
 def test-cleanup [] {
-    let result = (^nu --no-config-file -c r#'
+    let result = (^$nu.current-exe --no-config-file -c r#'
 try {
     try { error make {msg: inner} } finally { print inner }
 } catch { print outer }
@@ -92,14 +133,15 @@ def test-files-and-parser [] {
         assert equal (open --raw $file) saved
         assert error { mkdir --fail-if-exists $root }
         assert equal (mkdir --verbose $root | first | get created) false
-        let missing = (^nu --no-config-file --ide-check 100 ($root | path join missing.nu) | complete)
+        let missing = (^$nu.current-exe --no-config-file --ide-check 100 ($root | path join missing.nu) | complete)
         assert ($missing.exit_code != 0)
         assert ($missing.stderr | is-not-empty)
         for program in ['[1; 2]' '[[a b];]' '{a: [1]} | to yaml --compact-list-indent'] {
-            let rejected = (^nu --no-config-file -c $program | complete)
+            let rejected = (^$nu.current-exe --no-config-file -c $program | complete)
             assert ($rejected.exit_code != 0)
         }
     } finally { rm --recursive --force $root }
+    assert (not ($root | path exists))
 }
 
 def test-tui [] {

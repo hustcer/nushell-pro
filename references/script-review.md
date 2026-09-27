@@ -25,7 +25,7 @@ Before listing findings:
    side effects, and trust boundaries. Follow changed helpers into their callers
    when the bug depends on a wider data flow.
 3. Run the narrowest safe check that can falsify a suspected issue. Prefer a
-   minimal Nu 0.115 reproduction for version-sensitive semantics, then run the
+   minimal reproduction on the relevant Nu version for version-sensitive semantics, then run the
    project's focused test.
 4. Separate blocking correctness/security defects from migration notes,
    maintainability suggestions, and measured performance opportunities.
@@ -339,7 +339,7 @@ that changed in the supported Nu version without first reproducing it.
    processes, serialization, and side effects.
 3. **Security pass** — Check Section 1 systematically.
 4. **Correctness and migration pass** — Verify types, null handling, errors,
-   data-format contracts, process status, and 0.114/0.115 behavior.
+   data-format contracts, process status, and behavior on the supported Nu versions.
 5. **Robustness and tests pass** — Exercise boundary/failure paths and cleanup.
 6. **Maintainability/performance pass** — Report only actionable, non-tooling
    issues and performance claims with a scale argument or measurement.

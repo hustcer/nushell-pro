@@ -171,6 +171,11 @@ or probe command into a string for `nu -c`, `source`, `run`, or a shell.
   PIDs are gone with the built-in `ps` — `ps | where pid == $pid | is-empty` —
   which works on every platform Nushell supports, with no external `ps` probe
   or `which` gate.
+- Nu 0.116's `job kill` uses external `kill` on Unix or `taskkill` on Windows
+  (`nu-system/src/util.rs`). If a test strips PATH, retain that executable or
+  reject the fixture before spawning. An empty PATH can make cancellation fail
+  while the job entry is removed; polling only the job table will miss the
+  surviving child. This does not add an external `ps` dependency.
 - Assert that sockets, PID files, or state files owned by the fixture are gone
   before removing the fixture root. Remove only the directory returned by this
   test's own `mktemp --directory` call.

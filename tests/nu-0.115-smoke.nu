@@ -4,7 +4,7 @@ use std/assert
 # Any non-zero exit or stderr output is a harness failure, not an assertion
 # failure, so it is raised here instead of inside a test.
 def run-nu-json [args: list<string>] {
-    let result = (^nu --no-config-file ...$args | complete)
+    let result = (^$nu.current-exe --no-config-file ...$args | complete)
 
     if $result.exit_code != 0 or ($result.stderr | str trim | is-not-empty) {
         error make {
@@ -18,7 +18,7 @@ def run-nu-json [args: list<string>] {
 # Run a nested Nushell program and return its trimmed stdout lines, including
 # the runs that are expected to fail.
 def run-nu-lines [program: string] {
-    ^nu --no-config-file -c $program
+    ^$nu.current-exe --no-config-file -c $program
     | complete
     | get stdout
     | lines
