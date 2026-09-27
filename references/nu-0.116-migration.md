@@ -169,8 +169,14 @@ parse-time checks. List spreads still mean positional/rest arguments, not flags.
   the stream. Fix invalid upstream predicates rather than ignoring new errors.
 - `default 5 a.b` fills a nested field (creating parents); `default 5 'a.b'`
   targets a literal dotted key. This changes existing unquoted dotted arguments.
-- `flatten` preserves nested fields colliding with later top-level names by
-  renaming to `<parent>_<field>`; review downstream expected column names.
+- `flatten` now renames nested fields colliding with later top-level names to
+  `<parent>_<field>`, matching the opposite field order. This does not guarantee
+  lossless flattening: on 0.116.0, if the generated name already exists, a value
+  is still silently overwritten depending on field order. For example,
+  `{nested: {x: 1}, nested_x: 3, x: 2} | flatten` yields
+  `[{nested_x: 3, x: 2}]`; putting `nested` last instead leaves `nested_x: 1`.
+  Check generated names or explicitly rename conflicts before flattening when
+  all values must survive; also review downstream expected column names.
 - `update cells --recursive` visits nested leaf values. Default behavior remains
   nonrecursive; heterogeneous leaves require a type-aware closure.
 - `lines --skip-empty` now drops empty lines for string/byte-stream inputs.

@@ -96,6 +96,14 @@ def test-data [] {
     assert equal ({} | default 5 a.b) {a: {b: 5}}
     assert equal ({} | default 5 'a.b') {'a.b': 5}
     assert equal ({nested: {x: 1}, x: 2} | flatten) [{nested_x: 1, x: 2}]
+    # Lock the remaining 0.116.0 generated-name collision so the warning is
+    # revisited if upstream fixes it; neither field order preserves all values.
+    assert equal (
+        {nested: {x: 1}, nested_x: 3, x: 2} | flatten
+    ) [{nested_x: 3, x: 2}]
+    assert equal (
+        {nested_x: 3, x: 2, nested: {x: 1}} | flatten
+    ) [{nested_x: 1, x: 2}]
     assert equal ({a: [1 {b: 2}]} | update cells --recursive { $in * 2 }) {a: [2 {b: 4}]}
     assert equal ("a\n\nb\n" | lines --skip-empty) [a b]
     assert equal ([1 2 3 4] | take until --include 1 $it == 3) [1 2 3]
