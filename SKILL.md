@@ -1,7 +1,7 @@
 ---
 name: nushell-pro
 description: |
-  Comprehensive Nushell scripting best practices, idioms, security, and evidence-driven code review. Use when writing, reviewing, auditing, debugging, or refactoring Nushell (.nu) scripts, modules, custom commands, pipelines, config, and tests. Also use for Bash/POSIX-to-Nushell conversion and Nu migration issues including custom completions, record-spread flags, YAML, SemVer, cleanup, and subprocess diagnostics.
+  Comprehensive Nushell scripting best practices, idioms, security, and evidence-driven code review. Use when writing, reviewing, auditing, debugging, or refactoring Nushell (.nu) scripts, modules, custom commands, pipelines, config, and tests. Also use for Bash/POSIX-to-Nushell conversion and Nu migration issues including type aliases, record transforms, dotenv, custom completions, record-spread flags, YAML, SemVer, cleanup, and subprocess diagnostics.
 ---
 
 # Nushell Pro
@@ -34,21 +34,21 @@ in this file; load detailed references only when the task needs them.
 
 4. Load the smallest relevant reference set:
 
-   | Task                                                     | Reference                                                                                     |
-   | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-   | Nu 0.116 migration, completions, flag spreading, cleanup | [Nu 0.116 Migration](references/nu-0.116-migration.md)                                        |
-   | Nu 0.115 migration, YAML, CLI args, command changes      | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
-   | Nu 0.114 migration and version compatibility             | [Nu 0.114 Migration](references/nu-0.114-migration.md)                                        |
-   | Strings, regex/globs, generated JS/JSON                  | [String Formats](references/string-formats.md)                                                |
-   | Security, paths, credentials, destructive operations     | [Security](references/security.md)                                                            |
-   | Script/code review                                       | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
-   | Bash/POSIX conversion                                    | [Bash to Nushell](references/bash-to-nushell.md)                                              |
-   | Modules, exports, scripts, tests                         | [Modules & Scripts](references/modules-and-scripts.md)                                        |
-   | Daemons, background jobs, E2E smoke tests                | [Daemon & E2E Smoke Tests](references/daemon-and-e2e-smoke-tests.md)                          |
-   | Types, records, lists, conversions                       | [Data & Type System](references/data-and-types.md)                                            |
-   | Streaming, closures, performance, diagnostics            | [Advanced Patterns](references/advanced-patterns.md)                                          |
-   | Large columnar data                                      | [Dataframes](references/dataframes.md)                                                        |
-   | Common mistakes                                          | [Anti-Patterns](references/anti-patterns.md)                                                  |
+   | Task                                                              | Reference                                                                                     |
+   | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+   | Nu 0.117 migration, types, records, dotenv, config, dynamic calls | [Nu 0.117 Migration](references/nu-0.117-migration.md)                                        |
+   | Nu 0.116 migration, completions, flag spreading, cleanup          | [Nu 0.116 Migration](references/nu-0.116-migration.md)                                        |
+   | Nu 0.115 migration, YAML, CLI args, command changes               | [Nu 0.115 Migration](references/nu-0.115-migration.md)                                        |
+   | Strings, regex/globs, generated JS/JSON                           | [String Formats](references/string-formats.md)                                                |
+   | Security, paths, credentials, destructive operations              | [Security](references/security.md)                                                            |
+   | Script/code review                                                | [Script Review](references/script-review.md) and [Anti-Patterns](references/anti-patterns.md) |
+   | Bash/POSIX conversion                                             | [Bash to Nushell](references/bash-to-nushell.md)                                              |
+   | Modules, exports, scripts, tests                                  | [Modules & Scripts](references/modules-and-scripts.md)                                        |
+   | Daemons, background jobs, E2E smoke tests                         | [Daemon & E2E Smoke Tests](references/daemon-and-e2e-smoke-tests.md)                          |
+   | Types, records, lists, conversions                                | [Data & Type System](references/data-and-types.md)                                            |
+   | Streaming, closures, performance, diagnostics                     | [Advanced Patterns](references/advanced-patterns.md)                                          |
+   | Large columnar data                                               | [Dataframes](references/dataframes.md)                                                        |
+   | Common mistakes                                                   | [Anti-Patterns](references/anti-patterns.md)                                                  |
 
    Only the three newest migration guides are listed here. For earlier versions,
    consult the [migration archive](references/archive/README.md).
@@ -76,8 +76,9 @@ on syntax or behavior that changed between Nushell releases.
 - Type exported command parameters and input/output signatures.
 - Treat external/config records as untrusted; use optional access such as
   `$record.field?` and validate the resulting type/value.
-- Remember that `default` evaluates its fallback argument eagerly. Make the
-  fallback null-safe or branch explicitly when it can fail or is expensive.
+- Ordinary expressions passed to `default` are evaluated eagerly. Use a
+  closure literal, `default { ... }`, for a fallback evaluated only when needed.
+  `default $closure` stores the closure itself rather than running it.
 - Keep return types consistent. Avoid `any` unless the function is genuinely
   polymorphic.
 - Use `external_arg` on `main` parameters only when the CLI must preserve the
@@ -89,6 +90,9 @@ on syntax or behavior that changed between Nushell releases.
 - On Nu 0.116, record spreads pass named flags to internal/custom commands.
   Null omits flags unless their type accepts `nothing`; switch false/null also
   omits the flag. Validate forwarded keys and preserve default/null intent.
+- On Nu 0.117, define reusable annotations with `type` and import exported
+  aliases explicitly. `oneof<string, int>` prefers integer literals: quote
+  tokens such as `'007'` when spelling must survive.
 
 ### External commands and errors
 
@@ -106,6 +110,10 @@ on syntax or behavior that changed between Nushell releases.
 - Treat rendered nested-Nu diagnostics as presentation text, not a stable
   protocol. For CLI tests, normalize ANSI styling, gutters, and PTY wrapping
   before matching a long, domain-specific phrase.
+- On Nu 0.117, `%$cmd` interprets unquoted flags and validates arguments;
+  quote flag-like positional data. A failing external's streamed output can
+  reach downstream side effects before `catch`; insert `collect` before those
+  effects when failure must be detected first.
 
 ### Security stop checkpoint
 
@@ -172,12 +180,18 @@ with the same containment rule, then join only a validated leaf name.
 - `group-by` record output cannot represent a null key and omits that group in
   Nu 0.115. Use `group-by --to-table` when null groups must be retained or
   distinguished from empty strings.
+- On Nu 0.117, `group-by --to-table` also preserves key types and distinguishes
+  values such as `true` and `'true'`. Review consumers that assumed string keys.
+  `get ...$paths` always returns a list, even for one or zero paths; use actual
+  cell-path values for nested paths in a spread.
 
 ### Data flow and performance
 
 - Prefer pipelines and immutable `let` bindings.
 - Use `where`, `select`, `update`, `insert`, `items`, `transpose`, `reduce`, and
   `enumerate` instead of manual parsing and mutable accumulation.
+- On Nu 0.117, use `record where/each/walk/apply` for field transforms. Check
+  generated-key collisions in `record each` (later values replace earlier ones).
 - Do not capture `mut` variables in closures.
 - `for` is appropriate for sequential side effects but is not a transforming
   expression; use `each` when a list result is required.
@@ -198,13 +212,18 @@ with the same containment rule, then join only a validated leaf name.
 - Use `export def main` when the command should match the module name.
 - Use `def --env`/`export def --env` for caller-visible environment changes.
 - Do not name commands, aliases, modules, or exports after parser keywords.
-  Also treat `$ans` as reserved in Nu 0.115; rename older `ans` bindings.
+  `type` is reserved from Nu 0.117. Also treat `$ans` as reserved in Nu 0.115;
+  rename older `ans` bindings.
 - `source`, `use`, and `run` targets must be trusted and available at parse time.
 - Test at the correct seam: direct functions for stable structured errors, CLI
   subprocesses for argument parsing/process boundaries, and both when needed.
 - For Nu 0.116 completers, use named `token`/`place`/`buffer` inputs and
   `place.command` for shell words. Test via `commandline complete`; load the
   0.116 migration guide for output/fallback rules and `@interactive` ownership.
+- On Nu 0.117, assigning `config.keybindings` or `.menus` replaces the list.
+  For repeatable setup, start with `(config default).keybindings`/`.menus`,
+  then append custom entries. Read dotenv as text with `open --raw` when
+  expansion is unwanted; `open .env` now parses and expands variables.
 
 ## Review Order
 

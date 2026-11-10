@@ -133,10 +133,14 @@ that changed in the supported Nu version without first reproducing it.
 
 - [ ] Optional record fields accessed with `?`: `$rec.field?`
 - [ ] `default` used for fallback values: `$val | default 'N/A'`
+- [ ] Expensive/fallible defaults use a lazy literal `default { ... }`;
+      ordinary expressions are eager and `default $closure` returns a closure value
 - [ ] No bare field access on records from external/untrusted sources
 - [ ] `$in` captured early with `let` when used multiple times
 - [ ] `group-by` uses `--to-table` when null groups must survive or remain
       distinct from empty strings
+- [ ] Nu 0.117 table-group consumers accept original key types (including
+      `true` distinct from `'true'`); spread `get` consumers expect list output
 
 ### Logic correctness
 
@@ -146,6 +150,8 @@ that changed in the supported Nu version without first reproducing it.
 - [ ] Long `if`/`else if` chains on one value prefer `match` unless `if` is clearer
 - [ ] `if`/`match` expressions have `else`/`_` fallbacks when a non-null output is required
 - [ ] `each` not used on single records (use `items` or `transpose`)
+- [ ] Nu 0.117 field transforms can use `record where/each/walk/apply`;
+      generated keys in `record each` are checked when overwrites would lose data
 - [ ] `parse` gets `lines` first when line-by-line parsing of stream input is intended
 - [ ] Correct operator: `>` in non-pipeline context is comparison, not redirect
 - [ ] Multiline custom command calls with named flags are one-line or wrapped in parentheses
@@ -172,6 +178,14 @@ that changed in the supported Nu version without first reproducing it.
 - [ ] Nu 0.116 YAML writers use `--list-indent compact|indented`, not the removed flag
 - [ ] Nu 0.116 completers use named inputs and `place.command`, with engine-driven tests
 - [ ] Record-spread flags have validated keys and intentional null/default semantics
+- [ ] Nu 0.117 dynamic builtin flags are quoted when intended as positional data;
+      `run` forwards named flags with records, and string parameters receive strings
+- [ ] Nu 0.117 config list assignments preserve intended defaults and avoid
+      duplicate appends when sourcing again; invalid assignments keep the prior list
+- [ ] Nu 0.117 dotenv callers choose parsing/expansion versus `open --raw`,
+      select allowed environment keys, and account for automatic conversions
+- [ ] Flatten collisions are renamed before processing; 0.117 reports the
+      generated-name conflict instead of the 0.116 silent overwrite
 - [ ] Dotted `default` arguments distinguish nested paths from quoted literal keys
 - [ ] `save --force` destinations are validated even when parents do not yet exist (0.116 creates them)
 - [ ] YAML call sites that read colon-bearing scalars (`HH:MM:SS`, IDs) account

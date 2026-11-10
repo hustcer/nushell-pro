@@ -421,11 +421,13 @@ $input | default (-1)                # Parenthesize a negative positional value
 $input | default -- -1               # Or terminate flag parsing explicitly
 ```
 
-> **`default`'s argument is eager.** `$x | default <expr>` evaluates `<expr>`
-> whether or not `$x` is null — `default` is a normal command, not lazy. So
-> `$x | default $rec.maybe_missing` throws when that column is absent, even when
-> `$x` is non-null. Make the fallback null-safe (`... | default ($rec.maybe? | default 0)`)
-> or branch with `if` when it is expensive.
+Ordinary expressions passed to `default` are eager: `$x | default
+$rec.maybe_missing` throws for an absent field even when `$x` is non-null.
+A closure literal is evaluated only when a default is needed; use
+`$x | default { expensive-fallback }` to defer the work. A bare closure variable
+has different semantics: `default $closure` uses that closure as the value.
+These distinctions were CLI-verified on 0.117.0; the lazy literal is existing
+behavior clarified in that release, not a new 0.117-only feature.
 
 ## Discriminated Unions Pattern
 
@@ -461,7 +463,43 @@ general lossless guarantee: on 0.116.0, an existing column with that generated
 name can still collide, silently overwriting a value depending on field order.
 Check generated names or explicitly rename conflicting fields before flattening
 when all values must be preserved.
+Nu 0.117 fixes this generated-name data loss by raising
+`nu::shell::column_defined_twice` in both field orders; rename conflicts before
+flattening. The [0.117 regression suite](../tests/nu-0.117-smoke.nu) verifies the
+error after consuming the stream, while the 0.116 suite keeps versioned expectations.
 `update cells --recursive` transforms leaf values in nested lists/records, so
 use type guards for heterogeneous leaves. Record spreads into internal/custom
 commands forward named flags: null omits a flag unless its type accepts
 `nothing`. See [Nu 0.116 Migration](nu-0.116-migration.md) for examples and tests.
+
+## Nu 0.117 types and record operations
+
+Use `type Point = record<x: float, y: float>` to name an annotation, then compose
+it with `type Polygon = list<Point>`. Aliases must precede their uses; exported
+aliases need an explicit named/list/star import. Custom types such as `semver`
+are also supported in signatures. `oneof<string, int>` prefers a numeric
+literal over string, so quote `'007'` to retain its spelling.
+
+For direct field operations, use `record where` to filter, `record each` to
+rebuild keys/values, `record walk` for recursive values, and `record apply` for
+a record of field conversions:
+
+```nu
+{name: ' alice ', age: '42'} | record apply {name: {str trim}, age: {into int}}
+{a: 1, b: 2} | record where value > 1
+```
+
+`record each` silently replaces duplicate generated keys with the later value;
+check uniqueness if all fields must survive. `record apply --strict` rejects
+missing target fields; without it they are skipped. Consume streamed table
+results when asserting conversion errors. `update cells { ... } a b` replaces
+the deprecated `--columns [a b]` form and now propagates closure errors.
+
+`group-by --to-table` preserves typed key identity in 0.117, separating `true`
+from `'true'` and distinct filesizes with equal display strings. Default record
+output still groups display strings and omits null. `get ...$paths` always
+returns a list of values, even with one/zero paths; spread strings are literal
+column names, so spread `$.a.b` for nesting. Table `math sum a` now aggregates
+column `a` into one record; for a list in each row use `update a { math sum }`.
+
+See [Nu 0.117 Migration](nu-0.117-migration.md) for complete contracts and evidence.

@@ -164,6 +164,10 @@ def safe-open [name: string, --base-dir: path = '.'] {
 }
 ```
 
+On Nu 0.117, **do not add `--walk-up`** to a `path relative-to` containment
+check: it intentionally succeeds for paths outside the base by returning `..`.
+It is useful for displaying relative paths, not enforcing an allowed root.
+
 ### 3. Home-relative paths
 
 For paths that intentionally live under the user's home directory, compute the
@@ -334,6 +338,19 @@ def restricted-exec [cmd: path, allowed: list<path>, ...args: string] {
 ```
 
 ---
+
+### Dotenv and conversions on Nu 0.117
+
+`open .env` (also `.env.local` and `prod.env`) now parses dotenv and expands
+unquoted/double-quoted `$NAME` references using earlier keys or the environment.
+Single quotes keep values literal; command-substitution text is never executed.
+Use `open --raw .env` when inspecting literal content, and select allowed keys
+before `load-env` rather than loading arbitrary environment changes.
+
+`load-env`, `with-env`, and inline `FOO=bar command` now run `ENV_CONVERSIONS`,
+including string PATH conversion. `--no-convert` bypasses conversions when
+literal values are the contract. Nu-managed `PWD` is protected regardless of
+casing; use `cd`. See [Nu 0.117 Migration](nu-0.117-migration.md) for CLI evidence.
 
 ## Windows-Specific Risks
 

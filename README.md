@@ -18,6 +18,7 @@ Write idiomatic, performant, secure, and maintainable [Nushell](https://www.nush
 - **Nu 0.114 Support** — Stricter type checking, explicit submodule imports, `run`, POSIX `--`, SemVer, spreadsheet import changes, and updated diagnostics
 - **Nu 0.115 Support** — YAML 1.2 contracts, `external_arg`, row conditions, binary filesize slicing, SemVer comparisons, null grouping, test migrations, and reproduction-verified workarounds for known 0.115.0 defects
 - **Nu 0.116 Support** — Unified completions, record-spread flags, YAML option migration, repaired cleanup/type inference, stream errors, recursive transforms, and headless TUI tests
+- **Nu 0.117 Support** — Type aliases, record transforms, typed grouping, dotenv conversions, config list replacement, validated dynamic calls, structured externs, and repaired flatten/external streams
 - **Bash Conversion** — Side-by-side Bash-to-Nushell translation guide
 - **Performance** — Parallel processing with `par-each`, streaming patterns, memory-efficient techniques
 - **Data Processing** — Polars dataframes (lazy/eager), group-by, joins, window/sequence ops, nested list/struct data, reshaping, binning, time zones, SQL, column selectors, and large-data / columnar analytics
@@ -47,12 +48,15 @@ nushell-pro/
 │   ├── validation-and-daemon-smoke.nu   # Executable IDE/job lifecycle regression test
 │   ├── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
 │   ├── nu-0.116-smoke.nu                # Completion, flag, cleanup, data and TUI regression test
+│   ├── nu-0.117-smoke.nu                # Types, records, dotenv, config, extern and stream regressions
 │   └── strings-and-validation-smoke.nu # Parse checks, JS data boundary and documented runner
 └── references/
-    ├── nu-0.114-migration.md            # Version migration and compatibility checklist
     ├── nu-0.115-migration.md            # YAML, CLI, command, and review changes
     ├── nu-0.116-migration.md            # Completions, flag spreads, cleanup and data changes
+    ├── nu-0.117-migration.md            # Types, records, dotenv, config, dynamic calls and streams
     ├── archive/                        # Older migrations (latest three stay in the entrypoint)
+    │   ├── README.md                   # Archive index
+    │   └── nu-0.114-migration.md        # Preserved 0.114 migration history
     ├── security.md                      # Threat model, safe patterns, Windows risks
     ├── script-review.md                 # Review method + 5-category checklist
     ├── anti-patterns.md                 # 35 anti-patterns with fixes
@@ -110,6 +114,8 @@ nu --no-config-file -c 'nu-check --debug tests/nu-0.115-smoke.nu'
 nu --no-config-file tests/nu-0.115-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/nu-0.116-smoke.nu'
 nu --no-config-file tests/nu-0.116-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/nu-0.117-smoke.nu'
+nu --no-config-file tests/nu-0.117-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/strings-and-validation-smoke.nu'
 nu --no-config-file tests/strings-and-validation-smoke.nu
 ```
@@ -133,6 +139,14 @@ defects with version-aware expectations: `to yaml --non-roundtrip 'lossy'`
 alone remains rejected on 0.116.0, while nested `finally` is fixed in 0.116.
 The 0.116 suite also tests the completion engine, record-spread flags, error
 propagation, parent-directory creation and headless TUI selection.
+The 0.117 suite adds 11 groups for typed APIs, records, dotenv, process/config
+contracts, generated completion modules, dynamic flags, script isolation and
+bounded external streams. The old flatten collision expectations remain for
+pre-0.117 binaries; 0.117 asserts an error instead of silent data loss.
+All five suites were run on 0.117.0, commit
+`a4819256a2d875ca42c8600242388da291f3beaa`, on macOS arm64. See the
+[0.117 migration guide](references/nu-0.117-migration.md) for evidence, sources
+and platform/plugin/interactive validation limits.
 
 For the next release, invoke [update-nu](.agents/skills/update-nu/SKILL.md).
 Set `NU_DOC_REPO` and `NU_SOURCE_REPO` via environment variables or the local

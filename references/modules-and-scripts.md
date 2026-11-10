@@ -182,6 +182,37 @@ block and expect `run` to see it. Resolution uses the current directory,
 `run --full-reparse script.nu` when the script file can change between
 invocations, such as file-watch loops or tests that regenerate the script.
 
+On Nu 0.117, `run` also validates the target `main`'s flags, argument count and
+types. It does not coerce values like `nu script.nu`: use `run stage.nu --name
+'23'` for a string parameter. Put run's own flags before the path. List spreads
+are positional values, including flag-looking strings; forward named options
+with `run stage.nu ...{name: '23'}`. Commands, variables and `main` now stay in
+the script's scope; older releases leaked definitions into the caller.
+
+### Types, config and externs on Nu 0.117
+
+Export type aliases with `export type Count = int`, then explicitly import with
+`use module Count` (or a list/`*`). A bare module import does not bring aliases
+into scope. Rename commands/aliases/externs called `type`, now a parser keyword.
+Directory modules containing dots keep their full directory name in imports
+and overlays, so `a.b foo` replaces the former truncated `a foo`.
+
+Assignments to `$env.config.keybindings` and `.menus` replace entire lists on
+0.117, including defaults. For repeatable config loading, first reset the list
+from `(config default).keybindings`/`.menus`, then append custom entries with
+`++=`. Invalid entries reject the assignment, preserving the old list.
+
+For externs, `extern --strict` rejects undeclared flags; `--help` stays allowed
+but `-h` needs a declaration. `@structured [args] { decode }` adds format flags
+and decodes output for structured consumers, while direct output, redirection,
+external consumers and `complete` keep raw bytes. Use `^cmd` to bypass an extern
+declaration. Verify the actual consumer boundary, not just a direct invocation.
+
+`generate completions` emits executable Nu code: review it and run `nu-check
+--debug --as-module` before importing. Give the file a different name from the
+tool when using `use`, and test its results through `commandline complete`.
+See [Nu 0.117 Migration](nu-0.117-migration.md) for CLI-tested examples.
+
 ### Parameterized scripts with main
 
 ```nu

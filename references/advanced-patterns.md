@@ -282,6 +282,28 @@ if $result.exit_code != 0 {
 }
 ```
 
+### External streams and dynamic calls on Nu 0.117
+
+`try { ^external } finally { ... } | complete` now preserves stdout, stderr
+and exit status; `finally` still receives stdout as a value. Redirection with
+`^external o> file | complete` preserves stderr/status. Large external output
+with default pipefail no longer deadlocks in the reproduced cases. Keep a
+deadline for regression tests and retain explicit resource cleanup.
+
+Bare `try` preserves the lazy external stream and lets `complete` retrieve a
+nonzero exit code. With `catch`, downstream commands inside try may process
+output before producer failure reaches catch. Insert `collect` before dependent
+side effects when the producer must succeed first; bounded collection is needed
+when input may be unbounded.
+
+Dynamic builtin calls (`%$cmd`, `%($cmd)`) now parse unquoted flags, validate
+arguments, and accept record-spread flags. Use `'--foo'` or `-- --foo` for a
+literal positional value. `each/par-each/items` expose a failing closure's
+message/code; do not match the old `eval_block_with_input` wrapper. Errors made
+without a code can still have `details.code: null`.
+
+See [Nu 0.117 Migration](nu-0.117-migration.md) and its bounded subprocess tests.
+
 ### Terminal-width-independent diagnostic assertions
 
 Nested Nushell failures captured through `complete` are formatted for humans.

@@ -9,6 +9,10 @@ SemVer comparison inference and missing-file IDE checks are fixed; raw YAML
 `null` is accepted and list indentation uses a different flag. Historical
 0.115.0 reproductions below remain relevant to that version. The separate
 YAML `--non-roundtrip 'lossy'` rejection still reproduces on 0.116.0.
+The 0.115 suite was also rerun on 0.117.0: YAML lossy rejection remains,
+and the repaired cleanup expectation passes. See [Nu 0.117](nu-0.117-migration.md)
+for typed grouping and the config list replacement that reverses 0.115's merge
+behavior. Historical evidence below still describes its recorded binary.
 
 ## Contents
 
@@ -426,7 +430,7 @@ alone is not proof that the script has no error diagnostics.
 
 ## Related References
 
-- [Nu 0.114 Migration](nu-0.114-migration.md) for the previous release's
+- [Nu 0.114 Migration](archive/nu-0.114-migration.md) for the previous release's
   stricter typing, explicit submodule imports, and `run`.
 - [Security](security.md) for `external_arg`, path containment, and the rules
   that govern any nested `nu -c` invocation.

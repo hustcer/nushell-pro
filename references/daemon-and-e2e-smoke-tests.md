@@ -167,6 +167,14 @@ or probe command into a string for `nu -c`, `source`, `run`, or a shell.
 - Prefer a product-native status command over `ps`, port inspection, or log
   text. OS-level checks are useful additional cleanup evidence, not the primary
   readiness protocol.
+- Nu 0.117 standardizes `ps` columns and exposes more protected processes with
+  null fields. Cleanup probes should use stable PIDs; compact nullable fields
+  before numeric sorting or regex matching. `ps --long` now includes
+  `environment`, so avoid printing entire records in routine diagnostics.
+- Nu 0.117 adds `job spawn --auto-kill` and `job list.auto_kill` for exit-warning
+  policy. This does not replace explicit kill/poll/resource assertions. Script
+  and server shutdown fixes are upstream guidance; owned cleanup and forced
+  timeout are CLI-tested in [the 0.117 suite](../tests/nu-0.117-smoke.nu).
 - After `job kill`, poll until the job ID disappears. Verify observed child
   PIDs are gone with the built-in `ps` — `ps | where pid == $pid | is-empty` —
   which works on every platform Nushell supports, with no external `ps` probe

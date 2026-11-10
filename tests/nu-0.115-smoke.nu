@@ -59,8 +59,8 @@ def test-yaml-reader-strictness [] {
 def test-yaml-writer-non-roundtrip [] {
     assert error { {|| $in} | to yaml }
 
-    # The opt-out value is a string. A bare `null` is the `nothing` literal and
-    # fails to parse, so the quoted form is the only working spelling.
+    # On 0.115 the opt-out must be quoted; bare null is accepted from 0.116.
+    # Retain the quoted spelling for this suite's original compatibility target.
     assert equal ({a: {|| $in}} | to yaml --non-roundtrip 'null' | str trim) 'a: null'
     assert equal ({a: {|| $in}} | to yaml --serialize | str trim) 'a: !closure "{|| $in}"'
 

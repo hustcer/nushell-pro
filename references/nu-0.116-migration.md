@@ -4,6 +4,12 @@ Use for 0.116 upgrades, custom completion/config maintenance, and reviews of
 wrappers, data pipelines, or cleanup code. Keep the project's minimum Nu version
 separate from the local binary; the syntax below targets 0.116 unless stated.
 
+For newer targets, see [Nu 0.117](nu-0.117-migration.md). On 0.117.0 the suite
+was rerun: `flatten` generated-name collisions now error instead of overwriting,
+so that assertion is version-aware. YAML `'lossy'` rejection and the deprecated
+completion-input bridge still reproduce. This follow-up does not replace the
+original 0.116.0 evidence below or claim a new run on that older binary.
+
 ## Evidence and scope
 
 Verified on macOS arm64 with Nu **0.116.0**, binary commit
@@ -177,6 +183,8 @@ parse-time checks. List spreads still mean positional/rest arguments, not flags.
   `[{nested_x: 3, x: 2}]`; putting `nested` last instead leaves `nested_x: 1`.
   Check generated names or explicitly rename conflicts before flattening when
   all values must survive; also review downstream expected column names.
+  Nu 0.117 fixes this silent loss by raising `column_defined_twice` in both
+  orders; see the newer guide and its fully consumed error assertions.
 - `update cells --recursive` visits nested leaf values. Default behavior remains
   nonrecursive; heterogeneous leaves require a type-aware closure.
 - `lines --skip-empty` now drops empty lines for string/byte-stream inputs.

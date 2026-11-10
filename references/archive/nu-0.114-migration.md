@@ -28,7 +28,7 @@ version | get version
 
 Confirm the project-supported version before rewriting working compatibility
 code. For broader command-level changes, also read the command behavior notes
-in [Advanced Patterns](advanced-patterns.md).
+in [Advanced Patterns](../advanced-patterns.md).
 
 ## Type and Control-Flow Changes
 
@@ -55,7 +55,7 @@ def maybe-add [value?: int]: nothing -> int {
 mut errors: list<string> = []
 ```
 
-See [Data & Type System](data-and-types.md) for unions, collection types,
+See [Data & Type System](../data-and-types.md) for unions, collection types,
 runtime annotations, and null-safe `default` patterns.
 
 ## Scripts, Modules, and Pipeline Execution
@@ -70,7 +70,7 @@ runtime annotations, and null-safe `default` patterns.
 - Keep pipeline input in the command's input/output signature. It is not a
   substitute for a positional parameter, and streams may be single-pass.
 
-See [Modules & Scripts](modules-and-scripts.md) for module exports, `main`,
+See [Modules & Scripts](../modules-and-scripts.md) for module exports, `main`,
 parse-time resolution, pipeline scripts, and test seams.
 
 ## Commands, Values, and Data Formats
@@ -111,6 +111,6 @@ nu path/to/test-script.nu
 When diagnostics or tables are involved, repeat the focused regression under a
 narrow PTY, for example `stty cols 24 && nu tests/example.nu`.
 
-For implementation patterns, continue with [Advanced Patterns](advanced-patterns.md)
-and [Modules & Scripts](modules-and-scripts.md). For a migration-focused review,
-use [Anti-Patterns](anti-patterns.md) and [Script Review](script-review.md).
+For implementation patterns, continue with [Advanced Patterns](../advanced-patterns.md)
+and [Modules & Scripts](../modules-and-scripts.md). For a migration-focused review,
+use [Anti-Patterns](../anti-patterns.md) and [Script Review](../script-review.md).
