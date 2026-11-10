@@ -49,7 +49,11 @@ nushell-pro/
 │   ├── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
 │   ├── nu-0.116-smoke.nu                # Completion, flag, cleanup, data and TUI regression test
 │   ├── nu-0.117-smoke.nu                # Types, records, dotenv, config, extern and stream regressions
-│   └── strings-and-validation-smoke.nu # Parse checks, JS data boundary and documented runner
+│   ├── process-cleanup-smoke.nu         # Nested-process deadlines, cancellation and argv checks
+│   ├── strings-and-validation-smoke.nu # Parse checks, JS data boundary and documented runner
+│   └── support/
+│       ├── nu-process.nu               # Shared bounded process/group lifecycle
+│       └── nu-process-child.nu         # Launcher with an ownership/startup handshake
 └── references/
     ├── nu-0.115-migration.md            # YAML, CLI, command, and review changes
     ├── nu-0.116-migration.md            # Completions, flag spreads, cleanup and data changes
@@ -116,6 +120,9 @@ nu --no-config-file -c 'nu-check --debug tests/nu-0.116-smoke.nu'
 nu --no-config-file tests/nu-0.116-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/nu-0.117-smoke.nu'
 nu --no-config-file tests/nu-0.117-smoke.nu
+nu --no-config-file -c 'nu-check --debug tests/support/nu-process-child.nu'
+nu --no-config-file -c 'nu-check --debug tests/process-cleanup-smoke.nu'
+nu --no-config-file tests/process-cleanup-smoke.nu
 nu --no-config-file -c 'nu-check --debug tests/strings-and-validation-smoke.nu'
 nu --no-config-file tests/strings-and-validation-smoke.nu
 ```
@@ -143,10 +150,19 @@ The 0.117 suite adds 11 groups for typed APIs, records, dotenv, process/config
 contracts, generated completion modules, dynamic flags, script isolation and
 bounded external streams. The old flatten collision expectations remain for
 pre-0.117 binaries; 0.117 asserts an error instead of silent data loss.
-All five suites were run on 0.117.0, commit
+All six suites were run on 0.117.0, commit
 `a4819256a2d875ca42c8600242388da291f3beaa`, on macOS arm64. See the
 [0.117 migration guide](references/nu-0.117-migration.md) for evidence, sources
 and platform/plugin/interactive validation limits.
+
+The 0.116/0.117 suites share a pure-Nu bounded process helper. On Unix it verifies
+ownership before releasing the launcher, kills the entire inherited process
+group, then checks that the group is gone. Fixtures must not detach into new
+sessions/groups. Older Unix Nu versions missing the native process-group column
+also require the system `ps` for the ownership check. The cleanup suite covers
+nested timeouts, startup cancellation, argv preservation, failed commands,
+missing tools, and a simulated legacy process schema.
+The Windows `taskkill /T` branch is implemented but has not been run on Windows.
 
 For the next release, invoke [update-nu](.agents/skills/update-nu/SKILL.md).
 Set `NU_DOC_REPO` and `NU_SOURCE_REPO` via environment variables or the local

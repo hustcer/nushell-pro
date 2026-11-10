@@ -284,9 +284,20 @@ if $result.exit_code != 0 {
 
 ### External streams and dynamic calls on Nu 0.117
 
-`try { ^external } finally { ... } | complete` now preserves stdout, stderr
-and exit status; `finally` still receives stdout as a value. Redirection with
-`^external o> file | complete` preserves stderr/status. Large external output
+On success, `try { ^external } finally { ... } | complete` now preserves stdout,
+stderr and exit status, with the finalizer receiving stdout as a value. With
+default `pipefail=true`, a failing external instead propagates an error before
+the outer `complete` runs; the finalizer receives an error record including
+`exit_code`. To inspect failure as data while retaining cleanup, capture inside:
+
+```nu
+let result = try { ^tool ...$args | complete } finally { cleanup }
+if $result.exit_code != 0 { error make {msg: $result.stderr} }
+```
+
+Here the finalizer receives the `complete` record on either exit status.
+Independent redirection `^external o> file | complete` preserves stderr/status
+even on failure. Large external output
 with default pipefail no longer deadlocks in the reproduced cases. Keep a
 deadline for regression tests and retain explicit resource cleanup.
 
@@ -295,6 +306,8 @@ nonzero exit code. With `catch`, downstream commands inside try may process
 output before producer failure reaches catch. Insert `collect` before dependent
 side effects when the producer must succeed first; bounded collection is needed
 when input may be unbounded.
+Place that `collect` immediately after the producer, before `lines`/`each` and
+their side effects; collecting after the effects cannot undo them.
 
 Dynamic builtin calls (`%$cmd`, `%($cmd)`) now parse unquoted flags, validate
 arguments, and accept record-spread flags. Use `'--foo'` or `-- --foo` for a

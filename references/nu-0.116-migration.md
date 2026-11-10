@@ -33,6 +33,12 @@ the suite also exercises forced timeout and verifies job/process cleanup.
 These harness checks were rerun on 0.116.0; no older binary was revalidated
 in this follow-up review.
 
+A subsequent 0.117.0 review reproduced a nested process surviving the original
+direct-PID timeout check. Both suites now use
+[shared process support](../tests/support/nu-process.nu) and the additional
+[cleanup regression](../tests/process-cleanup-smoke.nu). The repair was verified
+on 0.117.0 only; it does not retroactively establish an older-binary result.
+
 Core examples and regressions below are CLI-tested. Interactive terminal
 ownership, editor DAP sessions, plugins, Windows fixes, and performance claims
 are release-note guidance, not measured results on those environments.

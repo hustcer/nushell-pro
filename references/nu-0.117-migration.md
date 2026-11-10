@@ -34,8 +34,20 @@ Run [the regression suite](../tests/nu-0.117-smoke.nu):
 
 All 11 groups pass. Nested Nu processes use `$nu.current-exe`. Files are created
 only below an owned temporary directory and removed in `finally`. Potentially
-hanging external-stream tests run in child processes with a five-second deadline;
-the forced-timeout path verifies job and child-process cleanup.
+hanging external-stream tests run in child processes with a five-second deadline.
+The original forced-timeout check observed only direct child PIDs; a follow-up
+review reproduced a surviving nested Nu. Both version suites now share
+[process support](../tests/support/nu-process.nu), which registers a launcher
+before allowing the fixture to run, then kills its entire inherited Unix process
+group and uses `kill -0` to poll until it disappears. Ownership falls back to
+system `ps` when an older Nu lacks the process-group column. Windows uses
+`taskkill /T`; that branch has not been run on Windows. Fixtures must not detach
+into new sessions/groups.
+The [process cleanup suite](../tests/process-cleanup-smoke.nu) verifies nested
+timeout cleanup, startup cancellation, literal argv, failures and preflight checks
+on the same 0.117.0 binary. A 0.117-based wrapper simulating the old macOS schema
+checks both system-ps fallback and failure before release when ps is missing;
+this is not a run on an older binary. Older binaries were not rerun after this repair.
 The suite also passed in a 24-column PTY (`stty cols 24`, then the same absolute
 Nu invocation), checking nested diagnostic assertions under narrow wrapping.
 
@@ -263,13 +275,28 @@ be set through these commands even with different casing; use `cd`.
 
 ## External streams, cleanup, and secondary changes
 
-The notes' earlier stderr/`finally` limitation is superseded by a later fix.
-CLI tests confirm `try { ^external } finally { ... } | complete` preserves
-stdout, stderr, and exit status. The finalizer still sees stdout as a value.
+The notes' earlier stderr/`finally` limitation is superseded by a later fix on
+the successful path. CLI tests confirm that
+`try { ^external } finally { ... } | complete` preserves stdout/stderr and an
+exit status of zero, with the finalizer receiving stdout as a value.
+With default `pipefail=true`, a nonzero exit propagates an error before the outer
+`complete` runs; the finalizer then receives an error record with `exit_code`,
+not stdout. The original success-only regression did not establish this failure
+boundary. To inspect failure as structured data, move `complete` inside `try`:
+
+```nu
+let result = try { ^tool ...$args | complete } finally { cleanup }
+```
+
+The finalizer now sees the `complete` record, and callers must check its
+`exit_code`. Follow-up regressions verify the outer-complete failure, its
+finalizer's error input, and this inner-complete capture with stdout/stderr and
+exit status 3.
 The release's
 [try regression tests](https://github.com/nushell/nushell/blob/a4819256a2d875ca42c8600242388da291f3beaa/crates/nu-command/tests/commands/try_.rs)
 corroborate the same channel contract.
-`^external o> file | complete` preserves stderr/status while writing stdout.
+Independent `^external o> file | complete` preserves stderr/status even for
+exit status 3 while writing stdout; that failure path is also tested.
 The bounded regression also verifies a 300,002-byte stdout pipeline completes
 with default pipefail enabled, plus a failed external's status through bare try.
 
@@ -277,6 +304,9 @@ Bare `try` keeps the external stream lazy and permits `complete` to retrieve
 failure status. With `catch`, downstream commands inside try can process output
 before the external failure reaches the handler. Put `collect` before dependent
 side effects when they must not run for a failed producer.
+The paired regression writes an owned file before `catch` without `collect`;
+inserting `collect` immediately after the external prevents that write. A later
+`collect` after `each` cannot roll back side effects and can change error handling.
 
 Other guidance from the release, with validation scope kept explicit:
 

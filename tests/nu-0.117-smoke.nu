@@ -1,4 +1,5 @@
 use std/assert
+use support/nu-process.nu run-nu-bounded
 
 type Point = record<x: float, y: float>
 type Polygon = list<Point>
@@ -11,34 +12,6 @@ module geometry {
 }
 use geometry Count
 def count-plus-one [value: Count]: nothing -> int { $value + 1 }
-
-# Keep potentially hanging external-stream regressions in a killable process.
-# Program text is fixed by the tests; runtime paths travel via argv instead.
-def run-nu-bounded [program: string, --args: list<string> = [], --timeout: duration = 5sec] {
-    let kill_tool = if $nu.os-info.name == windows { 'taskkill' } else { 'kill' }
-    assert (which --all $kill_tool | where type == external | is-not-empty)
-    let nu_exe = $nu.current-exe
-    let worker = (job spawn {
-        let result = (^$nu_exe --no-config-file -c $program -- ...$args | complete)
-        $result | job send 0 --tag (job id)
-    })
-    let outcome = try {
-        {result: (job recv --tag $worker --timeout $timeout)}
-    } catch {|err| {error: $err} }
-    let child_pids = (job list | where id == $worker | get pids | flatten)
-    try { job kill $worker }
-    let deadline = ((date now) + 2sec)
-    loop {
-        let child_alive = (ps | where {|p| $p.pid in $child_pids } | is-not-empty)
-        if $worker not-in (job list | get id) and not $child_alive { break }
-        if (date now) >= $deadline { error make {msg: 'Nu test process cleanup timed out'} }
-        sleep 20ms
-    }
-    if $outcome.error? != null {
-        error make {msg: $'Nu test process timed out after ($timeout)'}
-    }
-    $outcome.result
-}
 
 def assert-error-code [action: closure, expected: string] {
     let code = try { do $action | collect | ignore; null } catch {|e| $e.details.code }
@@ -274,20 +247,67 @@ def test-external-streams [root: path] {
     let big = (run-nu-bounded r#'try { ^$nu.current-exe --no-config-file -c 'print --no-newline ("x" | fill --width 300002 --character x)' } | str length'#)
     assert equal $big.exit_code 0
     assert equal ($big.stdout | str trim) '300002'
-    let final = (run-nu-bounded r#'try {
+    let final = (run-nu-bounded r#'use std/assert
+try {
     ^$nu.current-exe --no-config-file -c 'print out; print --stderr err'
 } finally {|value| assert equal ($value | str trim) out } | complete | to json'#)
     assert equal $final.exit_code 0
+    assert equal $final.stderr ''
     assert equal ($final.stdout | from json) {stdout: "out\n", stderr: "err\n", exit_code: 0}
+    # With pipefail enabled, finally-only propagates failure before an outer
+    # complete can run, and the finalizer receives the error record.
+    let finalizer_file = ($root | path join finalizer.json)
+    let failed_finally = (run-nu-bounded r#'def main [target: path] {
+    try {
+        ^$nu.current-exe --no-config-file -c 'print out; print --stderr err; exit 3'
+    } finally {|value|
+        {is_record: (($value | describe) starts-with record), exit_code: $value.exit_code}
+        | to json | save $target
+    } | complete | to json
+}'# --args [$finalizer_file])
+    assert equal $failed_finally {stdout: '', stderr: "err\n", exit_code: 3}
+    assert equal (open $finalizer_file) {is_record: true, exit_code: 3}
+    # Collect the structured result before crossing the try/finally boundary.
+    let captured_failure = (run-nu-bounded r#'use std/assert
+try {
+    ^$nu.current-exe --no-config-file -c 'print out; print --stderr err; exit 3' | complete
+} finally {|value| assert equal $value.exit_code 3 } | to json'#)
+    assert equal $captured_failure.exit_code 0
+    assert equal $captured_failure.stderr ''
+    assert equal ($captured_failure.stdout | from json) {stdout: "out\n", stderr: "err\n", exit_code: 3}
     let failed = (run-nu-bounded r#'try { ^$nu.current-exe --no-config-file -c 'exit 3' } | complete | to json'#)
     assert equal $failed.exit_code 0
     assert equal ($failed.stdout | from json | get exit_code) 3
     let redirected = (run-nu-bounded r#'def main [target: path] {
-    ^$nu.current-exe --no-config-file -c 'print out; print --stderr err' o> $target | complete | to json
+    ^$nu.current-exe --no-config-file -c 'print out; print --stderr err; exit 3' o> $target | complete | to json
 }'# --args [($root | path join out.txt)])
     assert equal $redirected.exit_code 0
-    assert equal ($redirected.stdout | from json | get stderr) "err\n"
+    assert equal ($redirected.stdout | from json) {stderr: "err\n", exit_code: 3}
     assert equal (open --raw ($root | path join out.txt)) "out\n"
+
+    let side_effect = ($root | path join side-effect.txt)
+    let streamed_failure = (run-nu-bounded r#'def main [target: path] {
+    try {
+        ^$nu.current-exe --no-config-file -c 'print row; exit 4'
+        | lines | each {|line| $line | save --append $target; $line }
+    } catch { 'caught' } | to json
+}'# --args [$side_effect])
+    assert equal $streamed_failure.exit_code 0
+    assert equal $streamed_failure.stderr ''
+    assert equal ($streamed_failure.stdout | from json) caught
+    assert equal (open --raw $side_effect) row
+
+    let guarded_effect = ($root | path join guarded-effect.txt)
+    let collected_failure = (run-nu-bounded r#'def main [target: path] {
+    try {
+        ^$nu.current-exe --no-config-file -c 'print row; exit 4'
+        | collect | lines | each {|line| $line | save --append $target; $line }
+    } catch { 'caught' } | to json
+}'# --args [$guarded_effect])
+    assert equal $collected_failure.exit_code 0
+    assert equal $collected_failure.stderr ''
+    assert equal ($collected_failure.stdout | from json) caught
+    assert (not ($guarded_effect | path exists))
     let timeout = try { run-nu-bounded 'sleep 1min' --timeout 100ms; null } catch {|e| $e.msg }
     assert equal $timeout 'Nu test process timed out after 100ms'
 }

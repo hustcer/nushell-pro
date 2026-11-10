@@ -179,6 +179,14 @@ or probe command into a string for `nu -c`, `source`, `run`, or a shell.
   PIDs are gone with the built-in `ps` — `ps | where pid == $pid | is-empty` —
   which works on every platform Nushell supports, with no external `ps` probe
   or `which` gate.
+- `job list.pids` covers direct external children, not their whole descendant
+  tree. In a Unix background job, verify a dedicated process group's ownership
+  before running a nested fixture, signal that group on cancellation, and poll
+  until every group member is gone. `job kill` alone can leave a nested Nu
+  alive. Fixtures that create new sessions/groups need a different supervisor;
+  Windows uses `taskkill /T`. See [shared process support](../tests/support/nu-process.nu)
+  and [nested timeout tests](../tests/process-cleanup-smoke.nu); only the macOS
+  branch was executed in this follow-up.
 - Nu 0.116's `job kill` uses external `kill` on Unix or `taskkill` on Windows
   (`nu-system/src/util.rs`). If a test strips PATH, retain that executable or
   reject the fixture before spawning. An empty PATH can make cancellation fail

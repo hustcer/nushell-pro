@@ -1,4 +1,5 @@
 use std/assert
+use support/nu-process.nu run-nu-bounded
 
 def flags [--count: int = 5, --nullable: oneof<int, nothing> = 7, --verbose] {
     {count: $count, nullable: $nullable, verbose: $verbose}
@@ -8,39 +9,6 @@ def complete-choice [token: record] {
     {completions: [alpha beta], options: {filter: true}, fallback: false}
 }
 def choose [value: string@complete-choice] { $value }
-
-# Isolate potentially deadlocking code in a killable process, not a Nu worker.
-# Use the job's own ID as the mailbox tag so a late result cannot satisfy a
-# later invocation. This helper is only called from this suite's main thread.
-def run-nu-bounded [program: string, --timeout: duration = 5sec] {
-    # job kill shells out to kill/taskkill; detect a stripped PATH before
-    # creating a child that could otherwise survive failed cancellation.
-    let kill_tool = if $nu.os-info.name == windows { 'taskkill' } else { 'kill' }
-    if (which --all $kill_tool | where type == external | is-empty) {
-        error make {msg: $'Nu job cleanup requires external ($kill_tool) on PATH'}
-    }
-    let nu_exe = $nu.current-exe
-    let worker = (job spawn {
-        let result = (^$nu_exe --no-config-file -c $program | complete)
-        $result | job send 0 --tag (job id)
-    })
-    let outcome = try {
-        {result: (job recv --tag $worker --timeout $timeout)}
-    } catch {|err| {error: $err} }
-    let child_pids = (job list | where id == $worker | get pids | flatten)
-    try { job kill $worker }
-    let deadline = ((date now) + 2sec)
-    loop {
-        let child_alive = (ps | where {|p| $p.pid in $child_pids } | is-not-empty)
-        if $worker not-in (job list | get id) and not $child_alive { break }
-        if (date now) >= $deadline { error make {msg: 'Nu test process cleanup timed out'} }
-        sleep 20ms
-    }
-    if $outcome.error? != null {
-        error make {msg: $'Nu test process timed out after ($timeout)'}
-    }
-    $outcome.result
-}
 
 def test-flags [] {
     assert equal (flags --count=(null)).count 5
