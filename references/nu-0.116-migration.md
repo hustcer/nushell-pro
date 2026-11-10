@@ -36,8 +36,16 @@ in this follow-up review.
 A subsequent 0.117.0 review reproduced a nested process surviving the original
 direct-PID timeout check. Both suites now use
 [shared process support](../tests/support/nu-process.nu) and the additional
-[cleanup regression](../tests/process-cleanup-smoke.nu). The repair was verified
-on 0.117.0 only; it does not retroactively establish an older-binary result.
+[cleanup regression](../tests/process-cleanup-smoke.nu). The initial repair was
+verified on 0.117.0 only. A subsequent **0.116.1** run, binary commit
+`b632ef0994e07b5176ec45171e8cee2c127c5563`, on macOS arm64 passed this suite,
+the 0.115 suite, process cleanup, validation/daemon, and strings/validation.
+Both shared support files also passed parse checks. The process-group fallback
+therefore has a real old-version run in addition to the 0.117 schema simulation.
+This follow-up caught and replaced `-$pid` with `0 - $pid` in group signalling;
+variable unary negation is new in 0.117. It also made the schema test's column
+removal optional when the column is already absent. This is 0.116.1 evidence,
+not a new run of the original 0.116.0 binary.
 
 Core examples and regressions below are CLI-tested. Interactive terminal
 ownership, editor DAP sessions, plugins, Windows fixes, and performance claims

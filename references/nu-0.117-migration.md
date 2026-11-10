@@ -6,8 +6,7 @@ Keep the project's minimum version separate from the binary used to validate it.
 
 ## Evidence and scope
 
-Verified **2026-11-10** on macOS arm64 using
-`/Users/hustcer/.cargo/bin/nu`, version **0.117.0**, commit
+Verified **2026-11-10** on macOS arm64 with Nu **0.117.0**, commit
 `a4819256a2d875ca42c8600242388da291f3beaa`, target
 `aarch64-apple-darwin`, Rust 1.97.1, release build, no installed plugins.
 The binary reports build time `2026-11-09 21:16:02 +00:00` and default
@@ -16,20 +15,22 @@ The binary reports build time `2026-11-09 21:16:02 +00:00` and default
 - [Official release](https://github.com/nushell/nushell/releases/tag/0.117.0):
   published `2026-11-10T00:39:45Z`; the stable target and blog baseline are both
   0.117.0. The intervening 0.116.1 patch notes were also read.
-- Docs checkout `/Users/hustcer/iWork/nu-docs`, fetched SHA
+- Docs repository `nushell/nushell.github.io`, fetched SHA
   `59b5e991fbf186c587501e63649565eda454935d`:
   [release notes](https://github.com/nushell/nushell.github.io/blob/59b5e991fbf186c587501e63649565eda454935d/blog/2026-11-09-nushell_v0_117_0.md).
   It was clean and already matched the fetched main commit.
-- Source checkout `/Users/hustcer/iWork/nushell`, fetched SHA
+- Source repository `nushell/nushell`, fetched SHA
   `a4819256a2d875ca42c8600242388da291f3beaa`: clean main was fast-forwarded
   by 26 commits. The remotely queried `refs/tags/0.117.0` and the binary commit
   both match this SHA, so the implementation evidence is release-specific.
 
-Run [the regression suite](../tests/nu-0.117-smoke.nu):
+Run [the regression suite](../tests/nu-0.117-smoke.nu) with Nu 0.117.0 selected
+on PATH:
 
 ```console
-/Users/hustcer/.cargo/bin/nu --no-config-file -c 'nu-check --debug tests/nu-0.117-smoke.nu'
-/Users/hustcer/.cargo/bin/nu --no-config-file tests/nu-0.117-smoke.nu
+nu --version
+nu --no-config-file -c 'nu-check --debug tests/nu-0.117-smoke.nu'
+nu --no-config-file tests/nu-0.117-smoke.nu
 ```
 
 All 11 groups pass. Nested Nu processes use `$nu.current-exe`. Files are created
@@ -47,13 +48,35 @@ The [process cleanup suite](../tests/process-cleanup-smoke.nu) verifies nested
 timeout cleanup, startup cancellation, literal argv, failures and preflight checks
 on the same 0.117.0 binary. A 0.117-based wrapper simulating the old macOS schema
 checks both system-ps fallback and failure before release when ps is missing;
-this is not a run on an older binary. Older binaries were not rerun after this repair.
-The suite also passed in a 24-column PTY (`stty cols 24`, then the same absolute
-Nu invocation), checking nested diagnostic assertions under narrow wrapping.
+this simulation is separate from the later real 0.116.1 run recorded below.
+The suite also passed in a 24-column PTY (`stty cols 24`, then the same selected
+Nu executable), checking nested diagnostic assertions under narrow wrapping.
 
 The existing 0.115, 0.116, strings/validation, and validation/daemon suites also
 pass on this binary after making the old flatten assertion version-aware.
-Older binaries were not rerun; their historical evidence remains in their guides.
+The historical 0.115.0/0.116.0 binaries were not rerun; their evidence remains in
+their guides. A later local-binary matrix on the same macOS arm64 host passed:
+
+| Nu version | Commit                                     | Suites passed                                                        |
+| ---------- | ------------------------------------------ | -------------------------------------------------------------------- |
+| 0.116.1    | `b632ef0994e07b5176ec45171e8cee2c127c5563` | 0.115, 0.116, process cleanup, validation/daemon, strings/validation |
+| 0.117.0    | `a4819256a2d875ca42c8600242388da291f3beaa` | All six, including the 0.117 suite                                   |
+
+Both binaries passed matching parse checks, including the shared launcher and
+support module. The cleanup suite asserts that the nested process version
+matches its selected parent binary. The 0.116.1 run exposed two compatibility
+mistakes in the initial repair: `-$pid` is a string before 0.117, and the legacy
+schema fixture must allow an already-absent column. Arithmetic `0 - $pid` and
+`reject --optional` now work on both versions. For side-by-side installations,
+set `NU_0116` to your Nu 0.116.1 executable and run these checks from Nushell:
+
+```nu
+let nu_0116 = ($env.NU_0116 | path expand --strict)
+^$nu_0116 --version # Expect 0.116.1
+^$nu_0116 --no-config-file tests/nu-0.116-smoke.nu
+^$nu_0116 --no-config-file tests/process-cleanup-smoke.nu
+```
+
 REPL rendering, Ctrl+C behavior, Windows/BSD/Linux process fields, plugins,
 LSP/DAP/MCP server sessions, experimental globbing, and speedups are upstream
 guidance rather than measurements from this validation.

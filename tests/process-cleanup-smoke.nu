@@ -4,6 +4,10 @@ use support/nu-process.nu run-nu-bounded
 const support_dir = path self support
 
 def test-result-and-argv [] {
+    let selected_version = (run-nu-bounded 'version | get version')
+    assert equal $selected_version.exit_code 0
+    assert equal $selected_version.stderr ''
+    assert equal ($selected_version.stdout | str trim) (version | get version)
     let argument = 'spaces; $literal (not-code)'
     let result = (run-nu-bounded 'def main [value: string] { $value | to json --raw }' --args [$argument])
     assert equal $result.exit_code 0

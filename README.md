@@ -163,6 +163,11 @@ also require the system `ps` for the ownership check. The cleanup suite covers
 nested timeouts, startup cancellation, argv preservation, failed commands,
 missing tools, and a simulated legacy process schema.
 The Windows `taskkill /T` branch is implemented but has not been run on Windows.
+Five compatible suites were also verified with the actual local Nu 0.116.1
+binary (`b632ef0994e07b5176ec45171e8cee2c127c5563`): 0.115, 0.116, process
+cleanup, validation/daemon, and strings/validation. The shared helper uses
+`0 - $pid` rather than 0.117-only variable unary negation; its cleanup suite
+checks that child processes retain the explicitly selected binary version.
 
 For the next release, invoke [update-nu](.agents/skills/update-nu/SKILL.md).
 Set `NU_DOC_REPO` and `NU_SOURCE_REPO` via environment variables or the local
