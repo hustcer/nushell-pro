@@ -1,0 +1,46 @@
+name: Nushell CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Nu ${{ matrix.nu }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        nu: ['0.115.1', '0.116.1', '0.117.0']
+    defaults:
+      run:
+        shell: nu --no-config-file {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: hustcer/setup-nu@v3
+        with:
+          version: ${{ matrix.nu }}
+          enable-plugins: false
+      - name: Parse and run applicable suites
+        env:
+          NU_EXPECTED_VERSION: ${{ matrix.nu }}
+        run: |
+          let entrypoint = ($env.GITHUB_WORKSPACE | path join tests ci.nu)
+          nu-check --debug $entrypoint
+          ^$nu.current-exe --no-config-file $entrypoint --expected-version $env.NU_EXPECTED_VERSION

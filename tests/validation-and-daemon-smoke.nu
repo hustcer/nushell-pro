@@ -15,7 +15,7 @@ def ide-check [script: path] {
         error make {msg: $'ide-check target not found: ($script)'}
     }
 
-    let result = (^nu --no-config-file --ide-check 100 $script | complete)
+    let result = (^$nu.current-exe --no-config-file --ide-check 100 $script | complete)
     if $result.exit_code != 0 or ($result.stderr | str trim | is-not-empty) {
         error make {msg: $'ide-check CLI failure with exit code ($result.exit_code): ($result.stderr | str trim)'}
     }
@@ -106,7 +106,7 @@ $value | ignore
                 | to json
                 | save --force ($env.NUSHELL_PRO_SMOKE_STATE | path join 'ready.json')
 
-                ^nu --no-config-file -c 'loop { sleep 1sec }'
+                ^$nu.current-exe --no-config-file -c 'loop { sleep 1sec }'
             }
         })
 

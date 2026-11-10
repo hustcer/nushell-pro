@@ -90,7 +90,7 @@ try {
             | to json
             | save --force ($env.APP_STATE_DIR | path join 'ready.json')
 
-            ^nu --no-config-file -c 'loop { sleep 1sec }'
+            ^$nu.current-exe --no-config-file -c 'loop { sleep 1sec }'
         }
     })
 

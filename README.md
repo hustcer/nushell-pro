@@ -44,7 +44,9 @@ git clone https://github.com/hustcer/nushell-pro.git /path/to/skills/nushell-pro
 nushell-pro/
 ├── SKILL.md                             # Main skill (core rules, always loaded)
 ├── .agents/skills/update-nu/SKILL.md     # Release-driven maintenance workflow
+├── .github/workflows/ci.yaml             # Nu version and Unix runner matrix
 ├── tests/
+│   ├── ci.nu                           # Parse and run suites supported by the active Nu
 │   ├── validation-and-daemon-smoke.nu   # Executable IDE/job lifecycle regression test
 │   ├── nu-0.115-smoke.nu                # Executable 0.115 command/migration regression test
 │   ├── nu-0.116-smoke.nu                # Completion, flag, cleanup, data and TUI regression test
@@ -110,6 +112,37 @@ The skill includes a version-aware review method plus a 5-category checklist:
 5. **Robustness** — input validation, file safety, process management
 
 ## Validation
+
+The [CI workflow](.github/workflows/ci.yaml) runs on pull requests, pushes to
+`main`, and manual dispatch. It uses Ubuntu and macOS runners with this matrix:
+
+| Nu version | Suites                                       |
+| ---------- | -------------------------------------------- |
+| 0.115.1    | 0.115, validation/daemon, strings/validation |
+| 0.116.1    | The above plus 0.116 and process cleanup     |
+| 0.117.0    | All six, including 0.117                     |
+
+Actions track their stable major tags: `actions/checkout@v7`,
+`actions/setup-node@v7`, and `hustcer/setup-nu@v3`. Each job installs Node 24
+for the JavaScript boundary test, leaves plugins disabled, and verifies the Nu
+version before any suite runs. The [shared CI entrypoint](tests/ci.nu) parses
+only applicable suites and invokes child Nu processes through `$nu.current-exe`.
+CI has a ten-minute job limit; potentially hanging fixtures also have their own
+short deadlines.
+
+Run the same entrypoint locally after selecting a supported Nu binary:
+
+```console
+nu --no-config-file -c 'nu-check --debug tests/ci.nu'
+nu --no-config-file tests/ci.nu
+```
+
+For an explicitly selected version, pass `--expected-version 0.117.0` (or the
+other selected version). Mismatches fail before parsing or running suites.
+When adding release support, update both the workflow matrix and the entrypoint's
+minimum versions; validate the entrypoint with the oldest matrix binary too.
+
+Individual suite checks remain available:
 
 ```bash
 nu --no-config-file -c 'nu-check --debug tests/validation-and-daemon-smoke.nu'

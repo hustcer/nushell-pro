@@ -1,7 +1,7 @@
 use std/assert
 
 def run-nu [args: list<string>]: nothing -> record {
-    ^nu --no-config-file ...$args | complete
+    ^$nu.current-exe --no-config-file ...$args | complete
 }
 
 def doc-example [file: path, heading: string]: nothing -> string {
